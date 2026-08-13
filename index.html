@@ -150,6 +150,8 @@ body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--
 .side-legend-label{color:var(--text-secondary);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .side-legend-value{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
 .side-legend-muted{color:var(--text-muted);font-weight:400;font-size:0.75rem}
+.side-legend-item.clickable{cursor:pointer;border-radius:5px;padding:2px 4px;margin:-2px -4px;transition:background .12s}
+.side-legend-item.clickable:hover{background:rgba(128,128,128,0.10)}
 
 /* Legend (inline, for bar charts) */
 .chart-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}
@@ -257,7 +259,7 @@ table tr:hover td{background:rgba(128,128,128,0.04)}
   <div class="chart-grid">
     <div class="chart-card" id="card-case-pie">
       <div class="chart-title">用例执行结果分布</div>
-      <div class="chart-subtitle">通过率 68.1%</div>
+      <div class="chart-subtitle">通过率 68.1% · 点击扇区或图例跳转用例详情</div>
       <div class="donut-row">
         <canvas id="chart-case-pie"></canvas>
         <div class="side-legend" id="legend-case-pie"></div>
@@ -337,6 +339,7 @@ table tr:hover td{background:rgba(128,128,128,0.04)}
         <option value="passed">Passed</option>
         <option value="failed">Failed</option>
         <option value="skipped">Skipped</option>
+        <option value="timeout_error">Timeout/Error</option>
         <option value="timeout">Timeout</option>
         <option value="error">Error</option>
       </select>
@@ -666,10 +669,10 @@ function renderCasePie(){
   const timeoutVal=(cases.timeout||0)+(cases.error||0);
 
   const items=[
-    {label:"通过用例",  value:cases.passed, color:getCSS("--status-passed")},
-    {label:"失败用例",  value:cases.failed, color:getCSS("--status-failed")},
-    {label:"跳过用例",  value:cases.skipped,color:getCSS("--status-skipped")},
-    {label:"超时/错误", value:timeoutVal,  color:getCSS("--status-timeout")}
+    {label:"通过用例",  value:cases.passed, color:getCSS("--status-passed"), status:"passed"},
+    {label:"失败用例",  value:cases.failed, color:getCSS("--status-failed"), status:"failed"},
+    {label:"跳过用例",  value:cases.skipped,color:getCSS("--status-skipped"),status:"skipped"},
+    {label:"超时/错误", value:timeoutVal,  color:getCSS("--status-timeout"), status:"timeout_error"}
   ];
 
   let startAngle=-Math.PI/2;
@@ -697,24 +700,31 @@ function renderCasePie(){
   ctx.fillText("通过率",cx,cy+14);
 
   document.getElementById("legend-case-pie").innerHTML=items.map(function(it){
-    return '<div class="side-legend-item"><span class="side-legend-dot" style="background:'+it.color+'"></span><span class="side-legend-label">'+it.label+'</span><span class="side-legend-value">'+fmt(it.value)+' <span class="side-legend-muted">('+pct(it.value,total).toFixed(1)+'%)</span></span></div>';
+    return '<div class="side-legend-item clickable" data-status="'+it.status+'"><span class="side-legend-dot" style="background:'+it.color+'"></span><span class="side-legend-label">'+it.label+'</span><span class="side-legend-value">'+fmt(it.value)+' <span class="side-legend-muted">('+pct(it.value,total).toFixed(1)+'%)</span></span></div>';
   }).join("");
 
   const tooltip=document.getElementById("tooltip-case-pie");
-  canvas.onmousemove=function(e){
+  function sliceAt(e){
     const br=canvas.getBoundingClientRect();
     const mx=e.clientX-br.left,my=e.clientY-br.top;
     const dx=mx-cx,dy=my-cy,dist=Math.sqrt(dx*dx+dy*dy);
-    if(dist<innerR||dist>outerR){tooltip.classList.remove("visible");canvas.style.cursor="default";return;}
+    if(dist<innerR||dist>outerR) return null;
     let angle=Math.atan2(dy,dx);if(angle<-Math.PI/2)angle+=Math.PI*2;
-    let hit=null;
-    for(const sl of slices){let sa=sl.startAngle,ea=sl.endAngle;if(sa<-Math.PI/2){sa+=Math.PI*2;ea+=Math.PI*2}if(angle>=sa&&angle<=ea){hit=sl;break}}
+    for(const sl of slices){let sa=sl.startAngle,ea=sl.endAngle;if(sa<-Math.PI/2){sa+=Math.PI*2;ea+=Math.PI*2}if(angle>=sa&&angle<=ea)return sl;}
+    return null;
+  }
+  canvas.onmousemove=function(e){
+    const hit=sliceAt(e);
     if(!hit){tooltip.classList.remove("visible");canvas.style.cursor="default";return;}
     canvas.style.cursor="pointer";
     tooltip.innerHTML=`<strong>${hit.item.label}</strong><br>${fmt(hit.item.value)} 用例 (${pct(hit.item.value,total).toFixed(1)}%)`;
     tooltip.classList.add("visible");positionTooltip(tooltip,card,e);
   };
   canvas.onmouseleave=function(){tooltip.classList.remove("visible");canvas.style.cursor="default";};
+  canvas.onclick=function(e){
+    const hit=sliceAt(e);
+    if(hit) openCaseDetails(hit.item.status);
+  };
 }
 
 // 2b. Module stacked bar — cases
@@ -869,6 +879,11 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
 
   function q(){ return (searchEl.value||"").trim().toLowerCase(); }
   function sf(){ return statusEl.value; }
+  function matchesStatus(result,sfv){
+    if(sfv==="all") return true;
+    if(sfv==="timeout_error") return result==="timeout"||result==="error";
+    return result===sfv;
+  }
 
   function el(tag,cls,text){
     const e=document.createElement(tag);
@@ -895,7 +910,7 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
         const matched=[];
         for(let i=0;i<cases.length;i++){
           const c=cases[i];
-          if(hasS && c[1]!==sfv) continue;
+          if(hasS && !matchesStatus(c[1],sfv)) continue;
           if(hasQ && !modHit && (file+"::"+c[0]).toLowerCase().indexOf(qq)<0) continue;
           matched.push(c);
         }
@@ -1007,6 +1022,19 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
   }
   document.querySelectorAll(".tab").forEach(function(t){
     t.addEventListener("click",function(){ showView(t.dataset.view); });
+  });
+
+  // Jump target for overview charts: filter the case tree by status and switch
+  // to the details tab. "timeout_error" is the combined slice in the case pie.
+  window.openCaseDetails=function(status){
+    statusEl.value=status;
+    renderCaseTree();
+    detailRendered=true;
+    showView("details");
+  };
+  document.getElementById("legend-case-pie").addEventListener("click",function(e){
+    const it=e.target.closest("[data-status]");
+    if(it) openCaseDetails(it.dataset.status);
   });
 })();
 </script>
