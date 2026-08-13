@@ -64,11 +64,11 @@ The script computes exactly the `DATA` object the dashboard renders:
 
 ```text
 files_total     = unique File values across all sheets            (1205)
-files_gen       = unique File values with ≥1 matched nodeid row   (36)
-files_na        = files_total - files_gen                         (1169)
-files_gen_rate  = files_gen / files_total × 100, 1 decimal        (3.0%)
+files_gen       = unique File values with ≥1 matched nodeid row   (43)
+files_na        = files_total - files_gen                         (1162)
+files_gen_rate  = files_gen / files_total × 100, 1 decimal        (3.6%)
 
-cases_total     = count of matched rows                           (48298)
+cases_total     = count of matched rows                           (52091)
 cases.passed|failed|skipped|timeout|error = matched rows by 执行结果
 cases_pass_rate = cases.passed / cases_total × 100, 1 decimal     (68.1%)
 
@@ -112,14 +112,18 @@ toggle, table, detail-view code — is static and reused as-is.
 These live in `index.html`'s rendering code (outside the `DATA` markers), so a
 regeneration leaves them unchanged:
 
-- **Click-to-drill.** The case donut (slices + legend items) and the 各模块用例执行结果
-  stacked bar jump to the 用例详情 tab via a global bridge
-  `window.openCaseDetails(status, module)`:
+- **Click-to-drill.** The case donut (slices + legend items), the 各模块用例执行结果
+  stacked bar, and the 模块详情汇总 table all jump to the 用例详情 tab via a global
+  bridge `window.openCaseDetails(status, module)`:
   - case-donut slice / legend item → filter by that result (`passed` / `failed` /
     `skipped` / `timeout_error`); the 超时/错误 slice maps to the combined
     `timeout_error` status.
   - stacked-bar status segment → filter by module + result; a module row's empty
     area → filter by module only.
+  - module-summary table cell → the module name / 泛化用例 cells filter by module
+    only; a Passed/Failed/Skipped/Timeout/Error count filters by module + result;
+    the 合计 row filters by the global (all-module) + result. Cells of zero-case
+    modules are rendered plain (not clickable).
 - **Details filters.** The details toolbar has three filters — text search
   (module/file/nodeid), a module `<select>`, and a status `<select>` (with a
   combined `timeout_error` option) — combined with AND. `openCaseDetails` sets the
@@ -164,9 +168,12 @@ same folder as `index.html`). Confirm:
 
 - Summary strip: 测试文件 / 已泛化文件 / 泛化用例 / 通过用例数 / 失败用例数
 - Case-level: 用例执行结果分布 donut + 各模块用例执行结果 stacked bar + 模块详情汇总 table
+  (columns 模块 / 文件 / 已泛化 / 泛化用例 / Passed / Failed / Skipped / Timeout / Error / 通过率;
+  sortable headers, no inline result-distribution bar)
 - File-level: 文件泛化率 donut + 各模块文件泛化情况 stacked bar
 - 用例详情 tab: drill-down 模块 → 文件 → 用例 (nodeid + 执行结果), with search / module / status filters and chunked "加载更多" per file
-- Clicking a case-donut slice/legend or a module-bar segment jumps to 用例详情 with the matching filter; hovering highlights without a border
+- Clicking a case-donut slice/legend, a module-bar segment, or a 模块详情汇总 table cell
+  jumps to 用例详情 with the matching filter; hovering highlights without a border
 - Light/dark toggle re-renders with correct status colors
 
 ## Notes & edge cases

@@ -173,8 +173,9 @@ table td{padding:8px 10px;border-bottom:1px solid var(--gridline);white-space:no
 table td.num{font-variant-numeric:tabular-nums;text-align:center}
 table tr:hover td{background:rgba(128,128,128,0.04)}
 .pass-rate-bar{display:inline-block;height:5px;border-radius:2px;margin-right:6px;vertical-align:middle}
-.mini-stack{display:inline-flex;width:110px;height:9px;border-radius:3px;overflow:hidden;background:var(--gridline);vertical-align:middle}
-.mini-seg{height:100%}
+td.cell-click{cursor:pointer}
+td.cell-click .cell-link{transition:color .12s}
+td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primary)}
 .footer{text-align:center;padding:16px 0 8px;font-size:0.6875rem;color:var(--text-muted)}
 
 /* Tabs */
@@ -279,20 +280,21 @@ table tr:hover td{background:rgba(128,128,128,0.04)}
   <!-- Detail Table -->
   <div class="chart-card" style="margin-bottom:0">
     <div class="chart-title">模块详情汇总</div>
-    <div class="chart-subtitle">点击表头排序 · 结果分布为通过 / 失败 / 跳过 / 超时+错误</div>
+    <div class="chart-subtitle">点击表头排序 · 点击数字跳转用例详情</div>
     <div class="table-wrap">
       <table id="detail-table">
         <thead>
           <tr>
-            <th data-sort="name">模块</th>
-            <th data-sort="files" class="num">文件</th>
-            <th data-sort="gen_files" class="num">已泛化</th>
-            <th data-sort="gen_cases" class="num">泛化用例</th>
-            <th data-sort="passed" class="num">Passed</th>
-            <th data-sort="failed" class="num">Failed</th>
-            <th data-sort="skipped" class="num">Skipped</th>
-            <th data-sort="case_rate" class="num">通过率</th>
-            <th>结果分布</th>
+            <th data-sort="name">模块<span class="sort-arrow"></span></th>
+            <th data-sort="files" class="num">文件<span class="sort-arrow"></span></th>
+            <th data-sort="gen_files" class="num">已泛化<span class="sort-arrow"></span></th>
+            <th data-sort="gen_cases" class="num">泛化用例<span class="sort-arrow"></span></th>
+            <th data-sort="passed" class="num">Passed<span class="sort-arrow"></span></th>
+            <th data-sort="failed" class="num">Failed<span class="sort-arrow"></span></th>
+            <th data-sort="skipped" class="num">Skipped<span class="sort-arrow"></span></th>
+            <th data-sort="timeout" class="num">Timeout<span class="sort-arrow"></span></th>
+            <th data-sort="error" class="num">Error<span class="sort-arrow"></span></th>
+            <th data-sort="case_rate" class="num">通过率<span class="sort-arrow"></span></th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -363,62 +365,62 @@ table tr:hover td{background:rgba(128,128,128,0.04)}
 const DATA = /*__DATA_BEGIN__*/
 {
   "files_total": 1205,
-  "files_gen": 36,
-  "files_na": 1169,
-  "files_gen_rate": 3.0,
-  "cases_total": 48298,
+  "files_gen": 43,
+  "files_na": 1162,
+  "files_gen_rate": 3.6,
+  "cases_total": 52091,
   "cases": {
-    "passed": 32901,
-    "failed": 11561,
-    "skipped": 3834,
-    "timeout": 1,
-    "error": 1
+    "passed": 35480,
+    "failed": 12651,
+    "skipped": 3947,
+    "timeout": 0,
+    "error": 13
   },
   "cases_pass_rate": 68.1,
   "sheets": {
     "Core": {
       "files": 53,
-      "gen_files": 17,
-      "gen_cases": 1382,
-      "passed": 918,
-      "failed": 130,
-      "skipped": 334,
+      "gen_files": 18,
+      "gen_cases": 4814,
+      "passed": 3206,
+      "failed": 1162,
+      "skipped": 446,
       "timeout": 0,
       "error": 0,
-      "na_files": 36
+      "na_files": 35
     },
     "Tensor": {
       "files": 70,
-      "gen_files": 11,
-      "gen_cases": 46709,
-      "passed": 31940,
-      "failed": 11417,
+      "gen_files": 13,
+      "gen_cases": 47024,
+      "passed": 32206,
+      "failed": 11467,
       "skipped": 3350,
-      "timeout": 1,
+      "timeout": 0,
       "error": 1,
-      "na_files": 59
+      "na_files": 57
     },
     "Distributed": {
       "files": 285,
-      "gen_files": 1,
-      "gen_cases": 1,
-      "passed": 1,
+      "gen_files": 4,
+      "gen_cases": 19,
+      "passed": 7,
       "failed": 0,
       "skipped": 0,
       "timeout": 0,
-      "error": 0,
-      "na_files": 284
+      "error": 12,
+      "na_files": 281
     },
     "Graph": {
       "files": 584,
-      "gen_files": 5,
-      "gen_cases": 178,
-      "passed": 28,
-      "failed": 0,
-      "skipped": 150,
+      "gen_files": 6,
+      "gen_cases": 206,
+      "passed": 47,
+      "failed": 8,
+      "skipped": 151,
       "timeout": 0,
       "error": 0,
-      "na_files": 579
+      "na_files": 578
     },
     "Math": {
       "files": 16,
@@ -856,16 +858,9 @@ function renderModules(){
 // TABLE
 // ================================================================
 let tableSort={key:"files",dir:-1};
-function stackedBar(sh){
-  const total=caseTotal(sh);
-  if(total===0) return '<span style="color:var(--text-muted)">—</span>';
-  const segs=[["passed","--status-passed"],["failed","--status-failed"],["skipped","--status-skipped"]];
-  const timeout=(sh.timeout||0)+(sh.error||0);
-  let html='<span class="mini-stack">';
-  segs.forEach(([k,c])=>{ const v=sh[k]||0; if(v>0) html+='<span class="mini-seg" style="width:'+(v/total*100).toFixed(2)+'%;background:var('+c+')"></span>'; });
-  if(timeout>0) html+='<span class="mini-seg" style="width:'+(timeout/total*100).toFixed(2)+'%;background:var(--status-timeout)"></span>';
-  html+='</span>';
-  return html;
+function jumpCell(html,module,status,cls,disabled){
+  if(disabled) return `<td class="${cls||""}">${html}</td>`;
+  return `<td class="${cls?cls+" ":""}cell-click" data-module="${module}" data-status="${status}" title="查看用例详情"><span class="cell-link">${html}</span></td>`;
 }
 function renderTable(){
   const tbody=document.querySelector("#detail-table tbody");
@@ -873,7 +868,7 @@ function renderTable(){
     const sh=DATA.sheets[n];
     const gen=caseTotal(sh);
     const rate=gen>0?pct(sh.passed||0,gen):0;
-    return{name:n,files:sh.files,gen_files:sh.gen_files,gen_cases:gen,passed:sh.passed||0,failed:sh.failed||0,skipped:sh.skipped||0,rate,sh};
+    return{name:n,files:sh.files,gen_files:sh.gen_files,gen_cases:gen,passed:sh.passed||0,failed:sh.failed||0,skipped:sh.skipped||0,timeout:sh.timeout||0,error:sh.error||0,rate,sh};
   });
   rows.sort((a,b)=>{
     const va=a[tableSort.key],vb=b[tableSort.key];
@@ -881,26 +876,31 @@ function renderTable(){
   });
 
   tbody.innerHTML=rows.map(r=>{
-    const c=r.rate>=80?"var(--status-passed)":r.rate>=50?"var(--status-skipped)":"var(--status-failed)";
     const rateStr=r.gen_cases>0?r.rate.toFixed(1)+"%":"—";
+    const noCases=r.gen_cases===0;
     return`<tr>
-      <td><strong>${r.name}</strong></td>
+      ${jumpCell("<strong>"+r.name+"</strong>",r.name,"all",null,noCases)}
       <td class="num">${fmt(r.files)}</td>
       <td class="num">${fmt(r.gen_files)}</td>
-      <td class="num">${fmt(r.gen_cases)}</td>
-      <td class="num">${fmt(r.passed)}</td>
-      <td class="num">${fmt(r.failed)}</td>
-      <td class="num">${fmt(r.skipped)}</td>
+      ${jumpCell(fmt(r.gen_cases),r.name,"all","num",noCases)}
+      ${jumpCell(fmt(r.passed),r.name,"passed","num",noCases)}
+      ${jumpCell(fmt(r.failed),r.name,"failed","num",noCases)}
+      ${jumpCell(fmt(r.skipped),r.name,"skipped","num",noCases)}
+      ${jumpCell(fmt(r.timeout),r.name,"timeout","num",noCases)}
+      ${jumpCell(fmt(r.error),r.name,"error","num",noCases)}
       <td class="num">${rateStr}</td>
-      <td>${stackedBar(r.sh)}</td>
     </tr>`;
   }).join("");
 
   tbody.insertAdjacentHTML("beforeend",`<tr style="border-top:2px solid var(--baseline);font-weight:600">
     <td>合计</td><td class="num">${fmt(DATA.files_total)}</td><td class="num">${fmt(DATA.files_gen)}</td>
-    <td class="num">${fmt(DATA.cases_total)}</td><td class="num">${fmt(DATA.cases.passed)}</td>
-    <td class="num">${fmt(DATA.cases.failed)}</td><td class="num">${fmt(DATA.cases.skipped)}</td>
-    <td class="num">${DATA.cases_pass_rate}%</td><td>${stackedBar(DATA.cases)}</td></tr>`);
+    ${jumpCell(fmt(DATA.cases_total),"all","all","num")}
+    ${jumpCell(fmt(DATA.cases.passed),"all","passed","num")}
+    ${jumpCell(fmt(DATA.cases.failed),"all","failed","num")}
+    ${jumpCell(fmt(DATA.cases.skipped),"all","skipped","num")}
+    ${jumpCell(fmt(DATA.cases.timeout),"all","timeout","num")}
+    ${jumpCell(fmt(DATA.cases.error),"all","error","num")}
+    <td class="num">${DATA.cases_pass_rate}%</td></tr>`);
 
   document.querySelectorAll("#detail-table th").forEach(th=>{
     const key=th.dataset.sort;if(!key)return;
@@ -912,6 +912,10 @@ document.querySelector("#detail-table thead").addEventListener("click",e=>{
   const key=th.dataset.sort;
   tableSort.key===key?tableSort.dir*=-1:(tableSort.key=key,tableSort.dir=-1);
   renderTable();
+});
+document.querySelector("#detail-table tbody").addEventListener("click",e=>{
+  const cell=e.target.closest(".cell-click");if(!cell)return;
+  openCaseDetails(cell.dataset.status,cell.dataset.module);
 });
 
 // ================================================================
