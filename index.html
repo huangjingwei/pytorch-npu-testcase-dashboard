@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Case Dashboard — PyTorch NPU</title>
+<style>
+/* ============================================================
+   Design tokens — light & dark
+   ============================================================ */
+:root {
+  color-scheme: light;
+  --surface-page:    #f9f9f7;
+  --surface-card:    #fcfcfb;
+  --text-primary:    #0b0b0b;
+  --text-secondary:  #52514e;
+  --text-muted:      #898781;
+  --gridline:        #e1e0d9;
+  --baseline:        #c3c2b7;
+  --border:          rgba(11,11,11,0.10);
+  --status-passed:   #1baf7a;
+  --status-failed:   #e34948;
+  --status-skipped:  #eda100;
+  --status-na:       #898781;
+  --status-timeout:  #eb6834;
+  --status-error:    #4a3aa7;
+  --gen-yes:         #2a78d6;
+  --gen-no:          #e1e0d9;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+  --delta-up:   #1baf7a;
+  --delta-down: #e34948;
+  --gap: 14px;
+  --radius: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --surface-page:    #0d0d0d;
+    --surface-card:    #1a1a19;
+    --text-primary:    #ffffff;
+    --text-secondary:  #c3c2b7;
+    --text-muted:      #898781;
+    --gridline:        #2c2c2a;
+    --baseline:        #383835;
+    --border:          rgba(255,255,255,0.10);
+    --status-passed:   #199e70;
+    --status-failed:   #e66767;
+    --status-skipped:  #c98500;
+    --status-na:       #898781;
+    --status-timeout:  #d95926;
+    --status-error:    #9085e9;
+    --gen-yes:         #3987e5;
+    --gen-no:          #383835;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #008300;
+    --series-7: #9085e9;
+    --series-8: #e66767;
+    --delta-up:   #199e70;
+    --delta-down: #e66767;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-page:    #0d0d0d;
+  --surface-card:    #1a1a19;
+  --text-primary:    #ffffff;
+  --text-secondary:  #c3c2b7;
+  --text-muted:      #898781;
+  --gridline:        #2c2c2a;
+  --baseline:        #383835;
+  --border:          rgba(255,255,255,0.10);
+  --status-passed:   #199e70;
+  --status-failed:   #e66767;
+  --status-skipped:  #c98500;
+  --status-na:       #898781;
+  --status-timeout:  #d95926;
+  --status-error:    #9085e9;
+  --gen-yes:         #3987e5;
+  --gen-no:          #383835;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+  --delta-up:   #199e70;
+  --delta-down: #e66767;
+}
+
+/* Reset & base */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;-webkit-font-smoothing:antialiased}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--surface-page);color:var(--text-primary);line-height:1.4;min-height:100vh}
+.page{max-width:1440px;margin:0 auto;padding:20px var(--gap)}
+
+/* Header */
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px}
+.header-left h1{font-size:1.25rem;font-weight:600;letter-spacing:-0.01em}
+.header-left p{font-size:0.75rem;color:var(--text-secondary);margin-top:2px}
+
+/* Theme toggle */
+.theme-toggle{display:flex;align-items:center;gap:4px;background:var(--surface-card);border:1px solid var(--border);border-radius:16px;padding:3px}
+.theme-toggle button{border:none;background:transparent;padding:5px 10px;border-radius:13px;font-size:0.75rem;cursor:pointer;color:var(--text-secondary);font-family:inherit;transition:all 0.15s}
+.theme-toggle button.active{background:var(--text-primary);color:var(--surface-card)}
+
+/* Summary strip */
+.summary-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+.sum-tile{background:var(--surface-card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;display:flex;flex-direction:column;gap:1px;position:relative;overflow:hidden}
+.sum-tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--tile-accent,transparent)}
+.sum-label{font-size:0.625rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600}
+.sum-value{font-size:1.5rem;font-weight:600;line-height:1.15;letter-spacing:-0.01em;font-variant-numeric:tabular-nums}
+.sum-sub{font-size:0.6875rem;color:var(--text-secondary);font-variant-numeric:tabular-nums}
+
+/* Section header */
+.section-label{display:flex;align-items:baseline;gap:8px;margin:18px 0 12px}
+.section-label .tag{font-size:0.625rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;padding:2px 8px;border-radius:4px;align-self:center}
+.section-label .tag.file-level{background:var(--gen-yes);color:#fff}
+.section-label .tag.case-level{background:var(--status-passed);color:#fff}
+.section-label h2{font-size:0.9375rem;font-weight:600}
+.section-label .sec-sub{font-size:0.75rem;color:var(--text-muted)}
+
+/* Chart grid */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.chart-card{background:var(--surface-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;position:relative}
+.chart-card.wide{grid-column:1/-1}
+.chart-title{font-size:0.8125rem;font-weight:600;margin-bottom:2px}
+.chart-subtitle{font-size:0.6875rem;color:var(--text-muted);margin-bottom:10px}
+.chart-body{flex:1;position:relative;min-height:0}
+.chart-body canvas{display:block}
+
+/* Donut layout — fixed square + side legend */
+.donut-row{display:flex;align-items:center;gap:20px;padding:2px 0;flex:1}
+.donut-row canvas{flex-shrink:0}
+.side-legend{display:flex;flex-direction:column;gap:10px;flex:1;min-width:0}
+.side-legend-item{display:flex;align-items:baseline;gap:8px;font-size:0.8125rem}
+.side-legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;align-self:center}
+.side-legend-label{color:var(--text-secondary);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.side-legend-value{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.side-legend-muted{color:var(--text-muted);font-weight:400;font-size:0.75rem}
+
+/* Legend (inline, for bar charts) */
+.chart-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}
+.chart-legend-item{display:flex;align-items:center;gap:6px;font-size:0.6875rem;color:var(--text-secondary)}
+.chart-legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+
+/* Tooltip */
+.chart-tooltip{position:absolute;pointer-events:none;background:rgba(30,30,30,0.94);color:#fff;padding:7px 11px;border-radius:6px;font-size:0.75rem;line-height:1.5;white-space:nowrap;z-index:10;opacity:0;transition:opacity 0.1s}
+.chart-tooltip.visible{opacity:1}
+
+/* Table */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:0.75rem}
+table th{text-align:center;padding:8px 10px;font-weight:600;color:var(--text-muted);font-size:0.6875rem;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid var(--gridline);white-space:nowrap;cursor:pointer;user-select:none}
+table th:hover{color:var(--text-primary)}
+table th .sort-arrow{margin-left:4px;font-size:0.5625rem}
+table td{padding:8px 10px;border-bottom:1px solid var(--gridline);white-space:nowrap;text-align:center}
+table td.num{font-variant-numeric:tabular-nums;text-align:center}
+table tr:hover td{background:rgba(128,128,128,0.04)}
+.pass-rate-bar{display:inline-block;height:5px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.mini-stack{display:inline-flex;width:110px;height:9px;border-radius:3px;overflow:hidden;background:var(--gridline);vertical-align:middle}
+.mini-seg{height:100%}
+.footer{text-align:center;padding:16px 0 8px;font-size:0.6875rem;color:var(--text-muted)}
+
+/* Tabs */
+.tabs{display:flex;gap:2px;margin:0 0 16px;border-bottom:1px solid var(--gridline)}
+.tab{appearance:none;border:none;background:transparent;padding:8px 14px;font-size:0.8125rem;font-weight:600;color:var(--text-secondary);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit;transition:color .12s}
+.tab:hover{color:var(--text-primary)}
+.tab.active{color:var(--text-primary);border-bottom-color:var(--gen-yes)}
+
+/* Detail view */
+.details-toolbar{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.details-toolbar input[type=search]{flex:1;min-width:200px;padding:7px 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface-card);color:var(--text-primary);font-size:0.8125rem;font-family:inherit;outline:none}
+.details-toolbar input[type=search]:focus{border-color:var(--gen-yes)}
+.details-toolbar select{padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface-card);color:var(--text-primary);font-size:0.8125rem;font-family:inherit;cursor:pointer}
+.detail-count{font-size:0.75rem;color:var(--text-muted);white-space:nowrap}
+
+/* Tree */
+.tree{background:var(--surface-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.tree-node>.tree-children{margin-left:20px;border-left:1px solid var(--gridline)}
+.tree-row{display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--gridline);font-size:0.8125rem;min-height:31px}
+.tree-row:hover{background:rgba(128,128,128,0.05)}
+.tree-row[data-level="module"]{background:var(--surface-page)}
+.tree-row[data-level="module"] .tree-label{font-weight:600}
+.tree-caret{width:16px;height:16px;flex:0 0 16px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.625rem;transition:transform .12s;cursor:pointer}
+.tree-caret.open{transform:rotate(90deg)}
+.tree-caret.leaf{visibility:hidden}
+.tree-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tree-label.mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;font-size:0.75rem}
+.tree-meta{flex:0 0 auto;font-size:0.6875rem;color:var(--text-muted);font-variant-numeric:tabular-nums}
+
+/* Result badge */
+.result-badge{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;font-size:0.75rem;font-weight:600;white-space:nowrap}
+.result-badge::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.result-badge.r-passed{color:var(--status-passed)}
+.result-badge.r-failed{color:var(--status-failed)}
+.result-badge.r-skipped{color:var(--status-skipped)}
+.result-badge.r-timeout{color:var(--status-timeout)}
+.result-badge.r-error{color:var(--status-error)}
+
+/* Load more / empty */
+.load-more{display:block;width:100%;padding:8px;border:none;background:transparent;color:var(--gen-yes);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:center}
+.load-more:hover{background:rgba(128,128,128,0.05)}
+.tree-empty{padding:24px;text-align:center;color:var(--text-muted);font-size:0.8125rem}
+
+@media(max-width:1100px){.summary-strip{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:900px){.chart-grid{grid-template-columns:1fr}}
+@media(max-width:640px){.summary-strip{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="header">
+    <div class="header-left">
+      <h1>PyTorch NPU 测试用例看板</h1>
+      <p>用例执行结果全景视图 · 更新于 2026-08-12</p>
+    </div>
+    <div class="theme-toggle" role="radiogroup" aria-label="主题切换">
+      <button id="btn-light" role="radio" aria-checked="true" class="active">☀ 浅色</button>
+      <button id="btn-dark" role="radio" aria-checked="false">☾ 深色</button>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="看板视图">
+    <button class="tab active" data-view="overview" role="tab" aria-selected="true">概览</button>
+    <button class="tab" data-view="details" role="tab" aria-selected="false">用例详情</button>
+  </nav>
+
+  <div id="view-overview">
+
+  <!-- Summary strip — generated by JS -->
+  <div class="summary-strip" id="summary-strip"></div>
+
+  <!-- ============================================================
+       SECTION 1: CASE-LEVEL
+       ============================================================ -->
+  <div class="section-label">
+    <span class="tag case-level">用例维度</span>
+    <h2>泛化用例执行结果</h2>
+    <span class="sec-sub">48,298 用例 · 来自 36 文件</span>
+  </div>
+
+  <!-- Row: Case pie + module stacked bar -->
+  <div class="chart-grid">
+    <div class="chart-card" id="card-case-pie">
+      <div class="chart-title">用例执行结果分布</div>
+      <div class="chart-subtitle">通过率 68.1%</div>
+      <div class="donut-row">
+        <canvas id="chart-case-pie"></canvas>
+        <div class="side-legend" id="legend-case-pie"></div>
+      </div>
+      <div class="chart-tooltip" id="tooltip-case-pie"></div>
+    </div>
+    <div class="chart-card" id="card-modules">
+      <div class="chart-title">各模块用例执行结果</div>
+      <div class="chart-subtitle">按模块堆叠</div>
+      <div class="chart-body" style="min-height:200px"><canvas id="chart-modules"></canvas></div>
+      <div class="chart-legend" id="legend-modules"></div>
+      <div class="chart-tooltip" id="tooltip-modules"></div>
+    </div>
+  </div>
+
+  <!-- Detail Table -->
+  <div class="chart-card" style="margin-bottom:0">
+    <div class="chart-title">模块详情汇总</div>
+    <div class="chart-subtitle">点击表头排序 · 结果分布为通过 / 失败 / 跳过 / 超时+错误</div>
+    <div class="table-wrap">
+      <table id="detail-table">
+        <thead>
+          <tr>
+            <th data-sort="name">模块</th>
+            <th data-sort="files" class="num">文件</th>
+            <th data-sort="gen_files" class="num">已泛化</th>
+            <th data-sort="gen_cases" class="num">泛化用例</th>
+            <th data-sort="passed" class="num">Passed</th>
+            <th data-sort="failed" class="num">Failed</th>
+            <th data-sort="skipped" class="num">Skipped</th>
+            <th data-sort="case_rate" class="num">通过率</th>
+            <th>结果分布</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SECTION 2: FILE-LEVEL
+       ============================================================ -->
+  <div class="section-label">
+    <span class="tag file-level">文件维度</span>
+    <h2>测试文件泛化概况</h2>
+    <span class="sec-sub">1,205 文件 · 36 已泛化（3.0%）</span>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card" id="card-file-donut">
+      <div class="chart-title">文件泛化率</div>
+      <div class="chart-subtitle">仅 3.0% 文件泛化出 nodeid</div>
+      <div class="donut-row">
+        <canvas id="chart-file-donut"></canvas>
+        <div class="side-legend" id="legend-file-donut"></div>
+      </div>
+      <div class="chart-tooltip" id="tooltip-file-donut"></div>
+    </div>
+    <div class="chart-card" id="card-file-modules">
+      <div class="chart-title">各模块文件泛化情况</div>
+      <div class="chart-subtitle">蓝 = 已泛化 · 灰 = 未泛化</div>
+      <div class="chart-body" style="min-height:200px"><canvas id="chart-file-modules"></canvas></div>
+      <div class="chart-legend" id="legend-file-modules"></div>
+      <div class="chart-tooltip" id="tooltip-file-modules"></div>
+    </div>
+  </div>
+  </div><!-- /view-overview -->
+
+  <!-- ============================================================
+       VIEW 2: CASE DETAILS (hierarchical)
+       ============================================================ -->
+  <div id="view-details" hidden>
+    <div class="details-toolbar">
+      <input id="case-search" type="search" placeholder="搜索 nodeid / 文件 / 模块…" autocomplete="off">
+      <select id="case-status" aria-label="按执行结果筛选">
+        <option value="all">全部结果</option>
+        <option value="passed">Passed</option>
+        <option value="failed">Failed</option>
+        <option value="skipped">Skipped</option>
+        <option value="timeout">Timeout</option>
+        <option value="error">Error</option>
+      </select>
+      <span class="detail-count" id="case-count"></span>
+    </div>
+    <div class="tree" id="case-tree"></div>
+  </div>
+
+  <div class="footer">Test Case Dashboard · PyTorch NPU · Generated 2026-08-12</div>
+</div>
+
+<script src="cases.js"></script>
+<script>
+// ================================================================
+// DATA
+// ================================================================
+const DATA = /*__DATA_BEGIN__*/
+{
+  "files_total": 1205,
+  "files_gen": 36,
+  "files_na": 1169,
+  "files_gen_rate": 3.0,
+  "cases_total": 48298,
+  "cases": {
+    "passed": 32901,
+    "failed": 11561,
+    "skipped": 3834,
+    "timeout": 1,
+    "error": 1
+  },
+  "cases_pass_rate": 68.1,
+  "sheets": {
+    "Core": {
+      "files": 53,
+      "gen_files": 17,
+      "gen_cases": 1382,
+      "passed": 918,
+      "failed": 130,
+      "skipped": 334,
+      "timeout": 0,
+      "error": 0,
+      "na_files": 36
+    },
+    "Tensor": {
+      "files": 70,
+      "gen_files": 11,
+      "gen_cases": 46709,
+      "passed": 31940,
+      "failed": 11417,
+      "skipped": 3350,
+      "timeout": 1,
+      "error": 1,
+      "na_files": 59
+    },
+    "Distributed": {
+      "files": 285,
+      "gen_files": 1,
+      "gen_cases": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "timeout": 0,
+      "error": 0,
+      "na_files": 284
+    },
+    "Graph": {
+      "files": 584,
+      "gen_files": 5,
+      "gen_cases": 178,
+      "passed": 28,
+      "failed": 0,
+      "skipped": 150,
+      "timeout": 0,
+      "error": 0,
+      "na_files": 579
+    },
+    "Math": {
+      "files": 16,
+      "gen_files": 0,
+      "gen_cases": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "timeout": 0,
+      "error": 0,
+      "na_files": 16
+    },
+    "Quantization": {
+      "files": 51,
+      "gen_files": 2,
+      "gen_cases": 28,
+      "passed": 14,
+      "failed": 14,
+      "skipped": 0,
+      "timeout": 0,
+      "error": 0,
+      "na_files": 49
+    },
+    "Utils": {
+      "files": 146,
+      "gen_files": 0,
+      "gen_cases": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "timeout": 0,
+      "error": 0,
+      "na_files": 146
+    }
+  }
+}
+  /*__DATA_END__*/;
+
+
+const STATUS = {
+  passed:{label:"Passed",color:"#1baf7a"}, failed:{label:"Failed",color:"#e34948"},
+  skipped:{label:"Skipped",color:"#eda100"}, timeout:{label:"Timeout",color:"#eb6834"},
+  error:{label:"Error",color:"#4a3aa7"}
+};
+const CASE_KEYS = ["passed","failed","skipped","timeout","error"];
+
+function caseTotal(sh){ let t=0; for(const k of CASE_KEYS)t+=(sh[k]||0); return t; }
+
+// ================================================================
+// HELPERS
+// ================================================================
+function getCSS(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function fmt(n){ return n.toLocaleString("en-US"); }
+function pct(p,t){ return t===0?0:(p/t*100); }
+
+// ================================================================
+// THEME
+// ================================================================
+const btnLight=document.getElementById("btn-light"), btnDark=document.getElementById("btn-dark");
+function setTheme(t){
+  document.documentElement.setAttribute("data-theme",t);
+  btnLight.classList.toggle("active",t==="light"); btnDark.classList.toggle("active",t==="dark");
+  btnLight.setAttribute("aria-checked",t==="light"); btnDark.setAttribute("aria-checked",t==="dark");
+  renderAll();
+}
+btnLight.addEventListener("click",()=>setTheme("light"));
+btnDark.addEventListener("click",()=>setTheme("dark"));
+if(window.matchMedia("(prefers-color-scheme:dark)").matches) setTheme("dark");
+
+// ================================================================
+// CANVAS UTILS
+// ================================================================
+function setupCanvas(canvas,w,h){
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=w*dpr;canvas.height=h*dpr;
+  canvas.style.width=w+"px";canvas.style.height=h+"px";
+  const ctx=canvas.getContext("2d");ctx.scale(dpr,dpr);
+  return{ctx,w,h};
+}
+function cardOf(canvas){return canvas.closest(".chart-card")}
+function roundRect(ctx,x,y,w,h,r){
+  if(w<=0||h<=0)return;r=Math.min(r,w/2,h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);
+  ctx.arcTo(x+w,y,x+w,y+r,r);ctx.lineTo(x+w,y+h-r);
+  ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);
+  ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);
+  ctx.arcTo(x,y,x+r,y,r);ctx.closePath();
+}
+function positionTooltip(tooltip,card,e){
+  const tr=tooltip.getBoundingClientRect(),cr=card.getBoundingClientRect();
+  let tx=e.clientX-cr.left+16,ty=e.clientY-cr.top-tr.height-8;
+  if(tx+tr.width>cr.width)tx-=tr.width+32;
+  if(ty<0)ty=e.clientY-cr.top+16;
+  tooltip.style.left=tx+"px";tooltip.style.top=ty+"px";
+}
+
+// ================================================================
+// SUMMARY STRIP
+// ================================================================
+function renderSummary(){
+  const tiles=[
+    {label:"测试文件", value:fmt(DATA.files_total), sub:"共 7 个模块", accent:"transparent", color:""},
+    {label:"已泛化文件", value:fmt(DATA.files_gen), sub:"泛化率 "+DATA.files_gen_rate.toFixed(1)+"%", accent:"var(--gen-yes)", color:"var(--gen-yes)"},
+    {label:"泛化用例", value:fmt(DATA.cases_total), sub:"来自 "+DATA.files_gen+" 文件", accent:"var(--series-7)", color:""},
+    {label:"通过用例数", value:fmt(DATA.cases.passed), sub:"通过率 "+DATA.cases_pass_rate.toFixed(1)+"%", accent:"var(--status-passed)", color:"var(--status-passed)"},
+    {label:"失败用例数", value:fmt(DATA.cases.failed), sub:"失败率 "+pct(DATA.cases.failed,DATA.cases_total).toFixed(1)+"%", accent:"var(--status-failed)", color:"var(--status-failed)"}
+  ];
+  document.getElementById("summary-strip").innerHTML=tiles.map(function(t){
+    return '<div class="sum-tile" style="--tile-accent:'+t.accent+'">'+
+      '<div class="sum-label">'+t.label+'</div>'+
+      '<div class="sum-value" style="color:'+(t.color||'var(--text-primary)')+'">'+t.value+'</div>'+
+      '<div class="sum-sub">'+t.sub+'</div></div>';
+  }).join("");
+}
+
+// ================================================================
+// SECTION 1: FILE-LEVEL CHARTS
+// ================================================================
+
+// 1a. File generalization donut
+function renderFileDonut(){
+  const canvas=document.getElementById("chart-file-donut");
+  const card=cardOf(canvas);
+  const SIZE=200;
+  const{ctx,w,h}=setupCanvas(canvas,SIZE,SIZE);
+  const cx=w/2,cy=h/2,outerR=Math.min(cx,cy)-6,innerR=outerR*0.55;
+  const gapAngle=0.03;
+
+  const items=[
+    {label:"已泛化",value:DATA.files_gen,color:getCSS("--gen-yes")},
+    {label:"未泛化",value:DATA.files_na,color:getCSS("--gen-no")}
+  ];
+  const total=DATA.files_total;
+  let startAngle=-Math.PI/2;
+  const slices=[];
+  items.forEach(item=>{
+    const sa=startAngle+gapAngle/2;
+    const ea=startAngle+(item.value/total)*Math.PI*2-gapAngle/2;
+    ctx.beginPath();
+    ctx.arc(cx,cy,outerR,sa,ea);ctx.arc(cx,cy,innerR,ea,sa,true);
+    ctx.closePath();
+    ctx.fillStyle=item.color;ctx.fill();
+    ctx.lineWidth=2;ctx.strokeStyle=getCSS("--surface-card");ctx.stroke();
+    slices.push({startAngle,endAngle:startAngle+(item.value/total)*Math.PI*2,item,outerR,innerR,cx,cy});
+    startAngle+=(item.value/total)*Math.PI*2;
+  });
+
+  // Center text
+  ctx.fillStyle=getCSS("--text-primary");ctx.font="600 22px system-ui,-apple-system,sans-serif";
+  ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText(DATA.files_gen_rate.toFixed(1)+"%",cx,cy-4);
+  ctx.fillStyle=getCSS("--text-muted");ctx.font="11px system-ui,-apple-system,sans-serif";
+  ctx.fillText("泛化率",cx,cy+14);
+
+  document.getElementById("legend-file-donut").innerHTML=items.map(it=>
+    `<div class="side-legend-item"><span class="side-legend-dot" style="background:${it.color}"></span><span class="side-legend-label">${it.label}</span><span class="side-legend-value">${fmt(it.value)} <span class="side-legend-muted">(${pct(it.value,total).toFixed(1)}%)</span></span></div>`
+  ).join("");
+
+  const tooltip=document.getElementById("tooltip-file-donut");
+  canvas.onmousemove=function(e){
+    const br=canvas.getBoundingClientRect();
+    const mx=e.clientX-br.left,my=e.clientY-br.top;
+    const dx=mx-cx,dy=my-cy,dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist<innerR||dist>outerR){tooltip.classList.remove("visible");canvas.style.cursor="default";return;}
+    let angle=Math.atan2(dy,dx);if(angle<-Math.PI/2)angle+=Math.PI*2;
+    let hit=null;
+    for(const sl of slices){let sa=sl.startAngle,ea=sl.endAngle;if(sa<-Math.PI/2){sa+=Math.PI*2;ea+=Math.PI*2}if(angle>=sa&&angle<=ea){hit=sl;break}}
+    if(!hit){tooltip.classList.remove("visible");canvas.style.cursor="default";return;}
+    canvas.style.cursor="pointer";
+    tooltip.innerHTML=`<strong>${hit.item.label}</strong><br>${fmt(hit.item.value)} 文件 (${pct(hit.item.value,total).toFixed(1)}%)`;
+    tooltip.classList.add("visible");positionTooltip(tooltip,card,e);
+  };
+  canvas.onmouseleave=function(){tooltip.classList.remove("visible");canvas.style.cursor="default"};
+}
+
+// 1b. Per-module file generalization stacked bar
+function renderFileModules(){
+  const canvas=document.getElementById("chart-file-modules");
+  const card=cardOf(canvas);
+  const body=card.querySelector(".chart-body");
+  const W=body.getBoundingClientRect().width, H=Math.max(200,body.getBoundingClientRect().height);
+  const{ctx,w,h}=setupCanvas(canvas,W,H);
+  const names=Object.keys(DATA.sheets);
+  const maxVal=Math.max(...names.map(n=>DATA.sheets[n].files));
+  const padL=80,padR=48,padT=8,padB=20;
+  const plotW=w-padL-padR,barH=Math.min(16,(h-padT-padB)/names.length-6),gap=6;
+  function xPos(v){return padL+(v/maxVal)*plotW}
+
+  ctx.strokeStyle=getCSS("--gridline");ctx.lineWidth=1;
+  const step=maxVal>200?100:50;
+  for(let v=0;v<=maxVal;v+=step){const x=xPos(v);ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,h-padB);ctx.stroke()}
+
+  const barData=[];
+  names.forEach((name,i)=>{
+    const sh=DATA.sheets[name];
+    const y=padT+i*(barH+gap);
+    const bw=(sh.files/maxVal)*plotW;
+    ctx.fillStyle=getCSS("--gen-no");
+    roundRect(ctx,padL,y,bw,barH,0);ctx.fill();
+    if(sh.gen_files>0){
+      const gbw=(sh.gen_files/maxVal)*plotW;
+      ctx.fillStyle=getCSS("--gen-yes");
+      roundRect(ctx,padL,y,gbw,barH,0);ctx.fill();
+      barData.push({x:padL,y,w:gbw,h:barH,name,files:sh.files,gen:sh.gen_files});
+    }
+    ctx.fillStyle=getCSS("--text-secondary");ctx.font="11px system-ui,-apple-system,sans-serif";
+    ctx.textAlign="right";ctx.textBaseline="middle";
+    ctx.fillText(name,padL-8,y+barH/2);
+    ctx.textAlign="left";
+    if(sh.gen_files>0){ctx.fillStyle=getCSS("--text-secondary");ctx.fillText(sh.gen_files+"/"+sh.files,padL+bw+6,y+barH/2);}
+    else{ctx.fillStyle=getCSS("--text-muted");ctx.fillText("0/"+sh.files,padL+bw+6,y+barH/2);}
+  });
+
+  ctx.strokeStyle=getCSS("--baseline");ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(padL,h-padB);ctx.lineTo(w-padR,h-padB);ctx.stroke();
+  ctx.fillStyle=getCSS("--text-muted");ctx.font="10px system-ui,-apple-system,sans-serif";
+  ctx.textAlign="center";ctx.textBaseline="top";
+  for(let v=0;v<=maxVal;v+=step)ctx.fillText(v,xPos(v),h-padB+5);
+
+  document.getElementById("legend-file-modules").innerHTML=`
+    <div class="chart-legend-item"><span class="chart-legend-dot" style="background:${getCSS('--gen-yes')}"></span>已泛化文件</div>
+    <div class="chart-legend-item"><span class="chart-legend-dot" style="background:${getCSS('--gen-no')}"></span>未泛化文件</div>
+  `;
+
+  const tooltip=document.getElementById("tooltip-file-modules");
+  canvas.onmousemove=function(e){
+    const br=canvas.getBoundingClientRect();
+    const mx=e.clientX-br.left,my=e.clientY-br.top;
+    const hit=barData.find(b=>mx>=b.x&&mx<=b.x+b.w&&my>=b.y&&my<=b.y+b.h);
+    if(!hit){tooltip.classList.remove("visible");canvas.style.cursor="default";return;}
+    canvas.style.cursor="pointer";
+    tooltip.innerHTML=`<strong>${hit.name}</strong><br>${hit.gen}/${hit.files} 文件已泛化 (${pct(hit.gen,hit.files).toFixed(1)}%)`;
+    tooltip.classList.add("visible");positionTooltip(tooltip,card,e);
+  };
+  canvas.onmouseleave=function(){tooltip.classList.remove("visible");canvas.style.cursor="default"};
+}
+
+// ================================================================
+// SECTION 2: CASE-LEVEL CHARTS
+// ================================================================
+
+// 2a. Case execution pie
+function renderCasePie(){
+  const canvas=document.getElementById("chart-case-pie");
+  const card=cardOf(canvas);
+  const SIZE=200;
+  const{ctx,w,h}=setupCanvas(canvas,SIZE,SIZE);
+  const cx=w/2,cy=h/2,outerR=Math.min(cx,cy)-6,innerR=outerR*0.55;
+  const cases=DATA.cases;
+  const total=DATA.cases_total;
+  const timeoutVal=(cases.timeout||0)+(cases.error||0);
+
+  const items=[
+    {label:"通过用例",  value:cases.passed, color:getCSS("--status-passed")},
+    {label:"失败用例",  value:cases.failed, color:getCSS("--status-failed")},
+    {label:"跳过用例",  value:cases.skipped,color:getCSS("--status-skipped")},
+    {label:"超时/错误", value:timeoutVal,  color:getCSS("--status-timeout")}
+  ];
+
+  let startAngle=-Math.PI/2;
+  const slices=[];
+  for(let i=0;i<items.length;i++){
+    const item=items[i];
+    if(item.value<=0) continue;
+    let sliceAngle=(item.value/total)*Math.PI*2;
+    if(sliceAngle<0.008) sliceAngle=0.008; // min visible slice
+    ctx.beginPath();
+    ctx.arc(cx,cy,outerR,startAngle,startAngle+sliceAngle);
+    ctx.arc(cx,cy,innerR,startAngle+sliceAngle,startAngle,true);
+    ctx.closePath();
+    ctx.fillStyle=item.color;
+    ctx.fill();
+    ctx.lineWidth=2;ctx.strokeStyle=getCSS("--surface-card");ctx.stroke();
+    slices.push({startAngle,endAngle:startAngle+sliceAngle,item,outerR,innerR,cx,cy});
+    startAngle+=sliceAngle;
+  }
+
+  ctx.fillStyle=getCSS("--text-primary");ctx.font="600 22px system-ui,-apple-system,sans-serif";
+  ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText(DATA.cases_pass_rate.toFixed(1)+"%",cx,cy-4);
+  ctx.fillStyle=getCSS("--text-muted");ctx.font="11px system-ui,-apple-system,sans-serif";
+  ctx.fillText("通过率",cx,cy+14);
+
+  document.getElementById("legend-case-pie").innerHTML=items.map(function(it){
+    return '<div class="side-legend-item"><span class="side-legend-dot" style="background:'+it.color+'"></span><span class="side-legend-label">'+it.label+'</span><span class="side-legend-value">'+fmt(it.value)+' <span class="side-legend-muted">('+pct(it.value,total).toFixed(1)+'%)</span></span></div>';
+  }).join("");
+
+  const tooltip=document.getElementById("tooltip-case-pie");
+  canvas.onmousemove=function(e){
+    const br=canvas.getBoundingClientRect();
+    const mx=e.clientX-br.left,my=e.clientY-br.top;
+    const dx=mx-cx,dy=my-cy,dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist<innerR||dist>outerR){tooltip.classList.remove("visible");canvas.style.cursor="default";return;}
+    let angle=Math.atan2(dy,dx);if(angle<-Math.PI/2)angle+=Math.PI*2;
+    let hit=null;
+    for(const sl of slices){let sa=sl.startAngle,ea=sl.endAngle;if(sa<-Math.PI/2){sa+=Math.PI*2;ea+=Math.PI*2}if(angle>=sa&&angle<=ea){hit=sl;break}}
+    if(!hit){tooltip.classList.remove("visible");canvas.style.cursor="default";return;}
+    canvas.style.cursor="pointer";
+    tooltip.innerHTML=`<strong>${hit.item.label}</strong><br>${fmt(hit.item.value)} 用例 (${pct(hit.item.value,total).toFixed(1)}%)`;
+    tooltip.classList.add("visible");positionTooltip(tooltip,card,e);
+  };
+  canvas.onmouseleave=function(){tooltip.classList.remove("visible");canvas.style.cursor="default";};
+}
+
+// 2b. Module stacked bar — cases
+function renderModules(){
+  const canvas=document.getElementById("chart-modules");
+  const card=cardOf(canvas);
+  const body=card.querySelector(".chart-body");
+  const W=body.getBoundingClientRect().width, H=Math.max(200,body.getBoundingClientRect().height);
+  const{ctx,w,h}=setupCanvas(canvas,W,H);
+  const names=Object.keys(DATA.sheets);
+  const activeKeys=CASE_KEYS.filter(k=>Object.values(DATA.sheets).some(sh=>(sh[k]||0)>0));
+  const maxTotal=Math.max(...names.map(n=>caseTotal(DATA.sheets[n])));
+  const padL=80,padR=20,padT=10,padB=24;
+  const plotW=w-padL-padR,barH=16,gap=6;
+  const barData=[];
+
+  ctx.strokeStyle=getCSS("--gridline");ctx.lineWidth=1;
+  const gstep=maxTotal>40000?10000:1000;
+  for(let v=0;v<=maxTotal;v+=gstep){const x=padL+(v/maxTotal)*plotW;ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,h-padB);ctx.stroke()}
+
+  names.forEach((name,i)=>{
+    const sh=DATA.sheets[name];
+    const y=padT+i*(barH+gap);
+    let xOffset=padL;
+    activeKeys.forEach(k=>{
+      const val=sh[k]||0;if(val===0)return;
+      const bw=(val/maxTotal)*plotW;
+      ctx.fillStyle=getCSS("--status-"+k);
+      roundRect(ctx,xOffset,y,bw,barH,0);ctx.fill();
+      if(xOffset>padL){ctx.fillStyle=getCSS("--surface-card");ctx.fillRect(xOffset-1,y,2,barH)}
+      barData.push({x:xOffset,y,w:bw,h:barH,status:k,name,val});
+      xOffset+=bw;
+    });
+    ctx.fillStyle=getCSS("--text-secondary");ctx.font="11px system-ui,-apple-system,sans-serif";
+    ctx.textAlign="right";ctx.textBaseline="middle";
+    ctx.fillText(name,padL-8,y+barH/2);
+  });
+
+  ctx.strokeStyle=getCSS("--baseline");ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(padL,h-padB);ctx.lineTo(w-padR,h-padB);ctx.stroke();
+  ctx.fillStyle=getCSS("--text-muted");ctx.font="10px system-ui,-apple-system,sans-serif";
+  ctx.textAlign="center";ctx.textBaseline="top";
+  ctx.fillText("0",padL,h-padB+5);
+  for(let v=gstep;v<=maxTotal;v+=gstep){
+    ctx.fillText(v>=1000?(v/1000).toFixed(v>=10000?0:1)+"k":v,padL+(v/maxTotal)*plotW,h-padB+5);
+  }
+
+  document.getElementById("legend-modules").innerHTML=activeKeys.map(k=>
+    `<div class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--status-${k})"></span>${STATUS[k].label}</div>`
+  ).join("");
+
+  const tooltip=document.getElementById("tooltip-modules");
+  canvas.onmousemove=function(e){
+    const br=canvas.getBoundingClientRect();
+    const mx=e.clientX-br.left,my=e.clientY-br.top;
+    const hit=barData.find(b=>mx>=b.x&&mx<=b.x+b.w&&my>=b.y&&my<=b.y+b.h);
+    if(!hit){tooltip.classList.remove("visible");canvas.style.cursor="default";return;}
+    canvas.style.cursor="pointer";
+    const t=caseTotal(DATA.sheets[hit.name]);
+    tooltip.innerHTML=`<strong>${hit.name} · ${STATUS[hit.status].label}</strong><br>${fmt(hit.val)} 用例 (${pct(hit.val,t).toFixed(1)}%)`;
+    tooltip.classList.add("visible");positionTooltip(tooltip,card,e);
+  };
+  canvas.onmouseleave=function(){tooltip.classList.remove("visible");canvas.style.cursor="default"};
+}
+
+// ================================================================
+// TABLE
+// ================================================================
+let tableSort={key:"files",dir:-1};
+function stackedBar(sh){
+  const total=caseTotal(sh);
+  if(total===0) return '<span style="color:var(--text-muted)">—</span>';
+  const segs=[["passed","--status-passed"],["failed","--status-failed"],["skipped","--status-skipped"]];
+  const timeout=(sh.timeout||0)+(sh.error||0);
+  let html='<span class="mini-stack">';
+  segs.forEach(([k,c])=>{ const v=sh[k]||0; if(v>0) html+='<span class="mini-seg" style="width:'+(v/total*100).toFixed(2)+'%;background:var('+c+')"></span>'; });
+  if(timeout>0) html+='<span class="mini-seg" style="width:'+(timeout/total*100).toFixed(2)+'%;background:var(--status-timeout)"></span>';
+  html+='</span>';
+  return html;
+}
+function renderTable(){
+  const tbody=document.querySelector("#detail-table tbody");
+  const rows=Object.keys(DATA.sheets).map(n=>{
+    const sh=DATA.sheets[n];
+    const gen=caseTotal(sh);
+    const rate=gen>0?pct(sh.passed||0,gen):0;
+    return{name:n,files:sh.files,gen_files:sh.gen_files,gen_cases:gen,passed:sh.passed||0,failed:sh.failed||0,skipped:sh.skipped||0,rate,sh};
+  });
+  rows.sort((a,b)=>{
+    const va=a[tableSort.key],vb=b[tableSort.key];
+    return typeof va==="string"?tableSort.dir*va.localeCompare(vb):tableSort.dir*(va-vb);
+  });
+
+  tbody.innerHTML=rows.map(r=>{
+    const c=r.rate>=80?"var(--status-passed)":r.rate>=50?"var(--status-skipped)":"var(--status-failed)";
+    const rateStr=r.gen_cases>0?r.rate.toFixed(1)+"%":"—";
+    return`<tr>
+      <td><strong>${r.name}</strong></td>
+      <td class="num">${fmt(r.files)}</td>
+      <td class="num">${fmt(r.gen_files)}</td>
+      <td class="num">${fmt(r.gen_cases)}</td>
+      <td class="num">${fmt(r.passed)}</td>
+      <td class="num">${fmt(r.failed)}</td>
+      <td class="num">${fmt(r.skipped)}</td>
+      <td class="num">${rateStr}</td>
+      <td>${stackedBar(r.sh)}</td>
+    </tr>`;
+  }).join("");
+
+  tbody.insertAdjacentHTML("beforeend",`<tr style="border-top:2px solid var(--baseline);font-weight:600">
+    <td>合计</td><td class="num">${fmt(DATA.files_total)}</td><td class="num">${fmt(DATA.files_gen)}</td>
+    <td class="num">${fmt(DATA.cases_total)}</td><td class="num">${fmt(DATA.cases.passed)}</td>
+    <td class="num">${fmt(DATA.cases.failed)}</td><td class="num">${fmt(DATA.cases.skipped)}</td>
+    <td class="num">${DATA.cases_pass_rate}%</td><td>${stackedBar(DATA.cases)}</td></tr>`);
+
+  document.querySelectorAll("#detail-table th").forEach(th=>{
+    const key=th.dataset.sort;if(!key)return;
+    th.querySelector(".sort-arrow").textContent=key===tableSort.key?(tableSort.dir===1?"▲":"▼"):"";
+  });
+}
+document.querySelector("#detail-table thead").addEventListener("click",e=>{
+  const th=e.target.closest("th");if(!th||!th.dataset.sort)return;
+  const key=th.dataset.sort;
+  tableSort.key===key?tableSort.dir*=-1:(tableSort.key=key,tableSort.dir=-1);
+  renderTable();
+});
+
+// ================================================================
+// RENDER ALL
+// ================================================================
+function renderAll(){
+  var charts=["renderSummary","renderFileDonut","renderFileModules","renderCasePie","renderModules","renderTable"];
+  for(var i=0;i<charts.length;i++){
+    try{ window[charts[i]](); }
+    catch(e){ console.error(charts[i]+" failed:",e); }
+  }
+}
+renderAll();
+let resizeTimer;
+window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(renderAll,200)});
+
+// ================================================================
+// DETAIL VIEW (tab 2) — hierarchical case browser
+// ================================================================
+(function(){
+  const CASES = window.CASES || {};
+  const CHUNK=100;
+  const treeEl=document.getElementById("case-tree");
+  const searchEl=document.getElementById("case-search");
+  const statusEl=document.getElementById("case-status");
+  const countEl=document.getElementById("case-count");
+
+  function q(){ return (searchEl.value||"").trim().toLowerCase(); }
+  function sf(){ return statusEl.value; }
+
+  function el(tag,cls,text){
+    const e=document.createElement(tag);
+    if(cls)e.className=cls;
+    if(text!=null)e.textContent=text;
+    return e;
+  }
+  function caret(leaf){
+    const c=el("span","tree-caret","▶");
+    if(leaf)c.classList.add("leaf");
+    return c;
+  }
+
+  // Filter CASES into {module:{file:[matching [suffix,result]]}} + total.
+  function buildFiltered(){
+    const qq=q(), sfv=sf(), hasQ=!!qq, hasS=sfv!=="all";
+    const out={}; let total=0;
+    for(const mod in CASES){
+      const files=CASES[mod];
+      const modHit=hasQ && mod.toLowerCase().indexOf(qq)>=0;
+      const outFiles={};
+      for(const file in files){
+        const cases=files[file];
+        const matched=[];
+        for(let i=0;i<cases.length;i++){
+          const c=cases[i];
+          if(hasS && c[1]!==sfv) continue;
+          if(hasQ && !modHit && (file+"::"+c[0]).toLowerCase().indexOf(qq)<0) continue;
+          matched.push(c);
+        }
+        if(matched.length){ outFiles[file]=matched; total+=matched.length; }
+      }
+      if(Object.keys(outFiles).length) out[mod]=outFiles;
+    }
+    return {out,total};
+  }
+
+  function caseRow(file,entry){
+    const suffix=entry[0], result=entry[1];
+    const full=file+"::"+suffix;
+    const r=el("div","tree-row");
+    r.dataset.level="case";
+    r.appendChild(caret(true));
+    const lbl=el("span","tree-label mono",full); lbl.title=full; r.appendChild(lbl);
+    r.appendChild(el("span","result-badge r-"+result,(STATUS[result]||{label:result}).label));
+    return r;
+  }
+
+  function renderCasesChunk(kids){
+    const cases=kids._cases;
+    const shown=kids._shown||0;
+    const next=Math.min(cases.length, shown+CHUNK);
+    for(let i=shown;i<next;i++) kids.appendChild(caseRow(kids._file,cases[i]));
+    kids._shown=next;
+    const old=kids.querySelector(".load-more"); if(old)old.remove();
+    if(next<cases.length){
+      kids.appendChild(el("button","load-more","加载更多 · 剩余 "+fmt(cases.length-next)+" 条"));
+    }
+  }
+
+  function fileNode(mod,file,cases){
+    const node=el("div","tree-node");
+    const r=el("div","tree-row"); r.dataset.level="file";
+    r.appendChild(caret(false));
+    r.appendChild(el("span","tree-label mono",file));
+    r.appendChild(el("span","tree-meta",fmt(cases.length)+" 用例"));
+    const kids=el("div","tree-children"); kids.hidden=true;
+    kids._file=file; kids._cases=cases; kids._shown=0;
+    r._kids=kids;
+    node.appendChild(r); node.appendChild(kids);
+    return node;
+  }
+
+  function moduleNode(mod,files){
+    const node=el("div","tree-node");
+    const r=el("div","tree-row"); r.dataset.level="module";
+    r.appendChild(caret(false));
+    r.appendChild(el("span","tree-label",mod));
+    let ncases=0; for(const f in files) ncases+=files[f].length;
+    r.appendChild(el("span","tree-meta",Object.keys(files).length+" 文件 · "+fmt(ncases)+" 用例"));
+    const kids=el("div","tree-children"); kids.hidden=true;
+    for(const file in files) kids.appendChild(fileNode(mod,file,files[file]));
+    r._kids=kids;
+    node.appendChild(r); node.appendChild(kids);
+    return node;
+  }
+
+  function autoExpand(){
+    treeEl.querySelectorAll(".tree-node").forEach(function(node){
+      const r=node.querySelector(".tree-row");
+      const kids=r._kids; if(!kids) return;
+      kids.hidden=false;
+      r.querySelector(".tree-caret").classList.add("open");
+      if(r.dataset.level==="file" && kids._shown===0) renderCasesChunk(kids);
+    });
+  }
+
+  function renderCaseTree(){
+    const res=buildFiltered();
+    countEl.textContent="匹配 "+fmt(res.total)+" 条用例";
+    treeEl.textContent="";
+    const mods=Object.keys(res.out);
+    if(!mods.length){ treeEl.appendChild(el("div","tree-empty","无匹配用例")); return; }
+    for(const mod of mods) treeEl.appendChild(moduleNode(mod,res.out[mod]));
+    if(q()||sf()!=="all") autoExpand();
+  }
+
+  treeEl.addEventListener("click",function(e){
+    const lm=e.target.closest(".load-more");
+    if(lm){ renderCasesChunk(lm.parentNode); return; }
+    const rowEl=e.target.closest(".tree-row");
+    if(!rowEl||!rowEl._kids) return;
+    const kids=rowEl._kids;
+    const opening=kids.hidden;
+    kids.hidden=!opening;
+    rowEl.querySelector(".tree-caret").classList.toggle("open",opening);
+    if(rowEl.dataset.level==="file" && opening && kids._shown===0) renderCasesChunk(kids);
+  });
+
+  searchEl.addEventListener("input",function(){ renderCaseTree(); });
+  statusEl.addEventListener("change",function(){ renderCaseTree(); });
+  searchEl.addEventListener("keydown",function(e){
+    if(e.key==="Escape"){ searchEl.value=""; renderCaseTree(); }
+  });
+
+  let detailRendered=false;
+  function showView(view){
+    document.querySelectorAll(".tab").forEach(function(t){
+      const on=t.dataset.view===view;
+      t.classList.toggle("active",on); t.setAttribute("aria-selected",on?"true":"false");
+    });
+    document.getElementById("view-overview").hidden=(view!=="overview");
+    document.getElementById("view-details").hidden=(view!=="details");
+    if(view==="overview") renderAll();
+    else if(!detailRendered){ detailRendered=true; renderCaseTree(); }
+  }
+  document.querySelectorAll(".tab").forEach(function(t){
+    t.addEventListener("click",function(){ showView(t.dataset.view); });
+  });
+})();
+</script>
+</body>
+</html>
