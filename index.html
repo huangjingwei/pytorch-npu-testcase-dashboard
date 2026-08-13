@@ -152,6 +152,7 @@ body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--
 .side-legend-muted{color:var(--text-muted);font-weight:400;font-size:0.75rem}
 .side-legend-item.clickable{cursor:pointer;border-radius:5px;padding:2px 4px;margin:-2px -4px;transition:background .12s}
 .side-legend-item.clickable:hover{background:rgba(128,128,128,0.10)}
+.side-legend-item.clickable.active{background:rgba(128,128,128,0.16)}
 
 /* Legend (inline, for bar charts) */
 .chart-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}
@@ -268,7 +269,7 @@ table tr:hover td{background:rgba(128,128,128,0.04)}
     </div>
     <div class="chart-card" id="card-modules">
       <div class="chart-title">各模块用例执行结果</div>
-      <div class="chart-subtitle">按模块堆叠</div>
+      <div class="chart-subtitle">按模块堆叠 · 点击色块/模块跳转用例详情</div>
       <div class="chart-body" style="min-height:200px"><canvas id="chart-modules"></canvas></div>
       <div class="chart-legend" id="legend-modules"></div>
       <div class="chart-tooltip" id="tooltip-modules"></div>
@@ -334,6 +335,9 @@ table tr:hover td{background:rgba(128,128,128,0.04)}
   <div id="view-details" hidden>
     <div class="details-toolbar">
       <input id="case-search" type="search" placeholder="搜索 nodeid / 文件 / 模块…" autocomplete="off">
+      <select id="case-module" aria-label="按模块筛选">
+        <option value="all">全部模块</option>
+      </select>
       <select id="case-status" aria-label="按执行结果筛选">
         <option value="all">全部结果</option>
         <option value="passed">Passed</option>
@@ -658,6 +662,11 @@ function renderFileModules(){
 // ================================================================
 
 // 2a. Case execution pie
+
+// Hover-highlight state (transient; cleared on mouseleave).
+let casePieHover=null;        // status key of the hovered pie slice
+let moduleBarHover=null;      // {module, status} — status:null = whole module
+
 function renderCasePie(){
   const canvas=document.getElementById("chart-case-pie");
   const card=cardOf(canvas);
@@ -677,17 +686,23 @@ function renderCasePie(){
 
   let startAngle=-Math.PI/2;
   const slices=[];
+  const hovered=casePieHover;
   for(let i=0;i<items.length;i++){
     const item=items[i];
     if(item.value<=0) continue;
     let sliceAngle=(item.value/total)*Math.PI*2;
     if(sliceAngle<0.008) sliceAngle=0.008; // min visible slice
+    const isHover=hovered!==null && item.status===hovered;
+    const mid=startAngle+sliceAngle/2;
+    const ox=(isHover?5:0)*Math.cos(mid), oy=(isHover?5:0)*Math.sin(mid);
     ctx.beginPath();
-    ctx.arc(cx,cy,outerR,startAngle,startAngle+sliceAngle);
-    ctx.arc(cx,cy,innerR,startAngle+sliceAngle,startAngle,true);
+    ctx.arc(cx+ox,cy+oy,outerR,startAngle,startAngle+sliceAngle);
+    ctx.arc(cx+ox,cy+oy,innerR,startAngle+sliceAngle,startAngle,true);
     ctx.closePath();
+    ctx.globalAlpha=(hovered!==null && !isHover)?0.3:1;
     ctx.fillStyle=item.color;
     ctx.fill();
+    ctx.globalAlpha=1;
     ctx.lineWidth=2;ctx.strokeStyle=getCSS("--surface-card");ctx.stroke();
     slices.push({startAngle,endAngle:startAngle+sliceAngle,item,outerR,innerR,cx,cy});
     startAngle+=sliceAngle;
@@ -700,7 +715,8 @@ function renderCasePie(){
   ctx.fillText("通过率",cx,cy+14);
 
   document.getElementById("legend-case-pie").innerHTML=items.map(function(it){
-    return '<div class="side-legend-item clickable" data-status="'+it.status+'"><span class="side-legend-dot" style="background:'+it.color+'"></span><span class="side-legend-label">'+it.label+'</span><span class="side-legend-value">'+fmt(it.value)+' <span class="side-legend-muted">('+pct(it.value,total).toFixed(1)+'%)</span></span></div>';
+    const active=it.status===casePieHover?" active":"";
+    return '<div class="side-legend-item clickable'+active+'" data-status="'+it.status+'"><span class="side-legend-dot" style="background:'+it.color+'"></span><span class="side-legend-label">'+it.label+'</span><span class="side-legend-value">'+fmt(it.value)+' <span class="side-legend-muted">('+pct(it.value,total).toFixed(1)+'%)</span></span></div>';
   }).join("");
 
   const tooltip=document.getElementById("tooltip-case-pie");
@@ -715,12 +731,17 @@ function renderCasePie(){
   }
   canvas.onmousemove=function(e){
     const hit=sliceAt(e);
+    const key=hit?hit.item.status:null;
+    if(key!==casePieHover){ casePieHover=key; renderCasePie(); }
     if(!hit){tooltip.classList.remove("visible");canvas.style.cursor="default";return;}
     canvas.style.cursor="pointer";
     tooltip.innerHTML=`<strong>${hit.item.label}</strong><br>${fmt(hit.item.value)} 用例 (${pct(hit.item.value,total).toFixed(1)}%)`;
     tooltip.classList.add("visible");positionTooltip(tooltip,card,e);
   };
-  canvas.onmouseleave=function(){tooltip.classList.remove("visible");canvas.style.cursor="default";};
+  canvas.onmouseleave=function(){
+    if(casePieHover!==null){ casePieHover=null; renderCasePie(); }
+    tooltip.classList.remove("visible");canvas.style.cursor="default";
+  };
   canvas.onclick=function(e){
     const hit=sliceAt(e);
     if(hit) openCaseDetails(hit.item.status);
@@ -745,6 +766,12 @@ function renderModules(){
   const gstep=maxTotal>40000?10000:1000;
   for(let v=0;v<=maxTotal;v+=gstep){const x=padL+(v/maxTotal)*plotW;ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,h-padB);ctx.stroke()}
 
+  const hovered=moduleBarHover;
+  function segOn(name,status){
+    if(!hovered || hovered.module!==name) return false;
+    if(hovered.status===null) return true;
+    return hovered.status===status;
+  }
   names.forEach((name,i)=>{
     const sh=DATA.sheets[name];
     const y=padT+i*(barH+gap);
@@ -752,13 +779,18 @@ function renderModules(){
     activeKeys.forEach(k=>{
       const val=sh[k]||0;if(val===0)return;
       const bw=(val/maxTotal)*plotW;
+      const on=segOn(name,k);
+      ctx.globalAlpha=(hovered && !on)?0.3:1;
       ctx.fillStyle=getCSS("--status-"+k);
       roundRect(ctx,xOffset,y,bw,barH,0);ctx.fill();
+      ctx.globalAlpha=1;
       if(xOffset>padL){ctx.fillStyle=getCSS("--surface-card");ctx.fillRect(xOffset-1,y,2,barH)}
       barData.push({x:xOffset,y,w:bw,h:barH,status:k,name,val});
       xOffset+=bw;
     });
-    ctx.fillStyle=getCSS("--text-secondary");ctx.font="11px system-ui,-apple-system,sans-serif";
+    const labelSel=hovered && hovered.module===name;
+    ctx.fillStyle=labelSel?getCSS("--text-primary"):getCSS("--text-secondary");
+    ctx.font=(labelSel?"600 11px":"11px")+" system-ui,-apple-system,sans-serif";
     ctx.textAlign="right";ctx.textBaseline="middle";
     ctx.fillText(name,padL-8,y+barH/2);
   });
@@ -777,17 +809,47 @@ function renderModules(){
   ).join("");
 
   const tooltip=document.getElementById("tooltip-modules");
+  function rowAt(my){
+    for(let i=0;i<names.length;i++){ const y=padT+i*(barH+gap); if(my>=y&&my<=y+barH) return names[i]; }
+    return null;
+  }
   canvas.onmousemove=function(e){
     const br=canvas.getBoundingClientRect();
     const mx=e.clientX-br.left,my=e.clientY-br.top;
     const hit=barData.find(b=>mx>=b.x&&mx<=b.x+b.w&&my>=b.y&&my<=b.y+b.h);
-    if(!hit){tooltip.classList.remove("visible");canvas.style.cursor="default";return;}
-    canvas.style.cursor="pointer";
-    const t=caseTotal(DATA.sheets[hit.name]);
-    tooltip.innerHTML=`<strong>${hit.name} · ${STATUS[hit.status].label}</strong><br>${fmt(hit.val)} 用例 (${pct(hit.val,t).toFixed(1)}%)`;
-    tooltip.classList.add("visible");positionTooltip(tooltip,card,e);
+    let next=null;
+    if(hit) next={module:hit.name,status:hit.status};
+    else{ const row=rowAt(my); if(row && caseTotal(DATA.sheets[row])>0) next={module:row,status:null}; }
+    const key=next?next.module+"|"+(next.status||""):null;
+    const prev=moduleBarHover?moduleBarHover.module+"|"+(moduleBarHover.status||""):null;
+    if(key!==prev){ moduleBarHover=next; renderModules(); }
+    if(hit){
+      canvas.style.cursor="pointer";
+      const t=caseTotal(DATA.sheets[hit.name]);
+      tooltip.innerHTML=`<strong>${hit.name} · ${STATUS[hit.status].label}</strong><br>${fmt(hit.val)} 用例 (${pct(hit.val,t).toFixed(1)}%)`;
+      tooltip.classList.add("visible");positionTooltip(tooltip,card,e);
+      return;
+    }
+    if(next){
+      canvas.style.cursor="pointer";
+      tooltip.innerHTML=`<strong>${next.module}</strong><br>查看该模块全部用例`;
+      tooltip.classList.add("visible");positionTooltip(tooltip,card,e);
+      return;
+    }
+    tooltip.classList.remove("visible");canvas.style.cursor="default";
   };
-  canvas.onmouseleave=function(){tooltip.classList.remove("visible");canvas.style.cursor="default"};
+  canvas.onmouseleave=function(){
+    if(moduleBarHover){ moduleBarHover=null; renderModules(); }
+    tooltip.classList.remove("visible");canvas.style.cursor="default";
+  };
+  canvas.onclick=function(e){
+    const br=canvas.getBoundingClientRect();
+    const mx=e.clientX-br.left,my=e.clientY-br.top;
+    const hit=barData.find(b=>mx>=b.x&&mx<=b.x+b.w&&my>=b.y&&my<=b.y+b.h);
+    if(hit){ openCaseDetails(hit.status,hit.name); return; }
+    const row=rowAt(my);
+    if(row && caseTotal(DATA.sheets[row])>0) openCaseDetails("all",row);
+  };
 }
 
 // ================================================================
@@ -875,10 +937,19 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
   const treeEl=document.getElementById("case-tree");
   const searchEl=document.getElementById("case-search");
   const statusEl=document.getElementById("case-status");
+  const moduleEl=document.getElementById("case-module");
   const countEl=document.getElementById("case-count");
+
+  // Populate the module filter from the case tree (only modules with cases).
+  Object.keys(CASES).forEach(function(m){
+    const o=document.createElement("option");
+    o.value=m; o.textContent=m;
+    moduleEl.appendChild(o);
+  });
 
   function q(){ return (searchEl.value||"").trim().toLowerCase(); }
   function sf(){ return statusEl.value; }
+  function mf(){ return moduleEl.value; }
   function matchesStatus(result,sfv){
     if(sfv==="all") return true;
     if(sfv==="timeout_error") return result==="timeout"||result==="error";
@@ -899,9 +970,10 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
 
   // Filter CASES into {module:{file:[matching [suffix,result]]}} + total.
   function buildFiltered(){
-    const qq=q(), sfv=sf(), hasQ=!!qq, hasS=sfv!=="all";
+    const qq=q(), sfv=sf(), mfv=mf(), hasQ=!!qq, hasS=sfv!=="all", hasM=mfv!=="all";
     const out={}; let total=0;
     for(const mod in CASES){
+      if(hasM && mod!==mfv) continue;
       const files=CASES[mod];
       const modHit=hasQ && mod.toLowerCase().indexOf(qq)>=0;
       const outFiles={};
@@ -1005,6 +1077,7 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
 
   searchEl.addEventListener("input",function(){ renderCaseTree(); });
   statusEl.addEventListener("change",function(){ renderCaseTree(); });
+  moduleEl.addEventListener("change",function(){ renderCaseTree(); });
   searchEl.addEventListener("keydown",function(e){
     if(e.key==="Escape"){ searchEl.value=""; renderCaseTree(); }
   });
@@ -1026,8 +1099,9 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
 
   // Jump target for overview charts: filter the case tree by status and switch
   // to the details tab. "timeout_error" is the combined slice in the case pie.
-  window.openCaseDetails=function(status){
-    statusEl.value=status;
+  window.openCaseDetails=function(status,module){
+    statusEl.value=status||"all";
+    moduleEl.value=(module && CASES[module]) ? module : "all";
     renderCaseTree();
     detailRendered=true;
     showView("details");
