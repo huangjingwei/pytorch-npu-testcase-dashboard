@@ -1266,6 +1266,7 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
     document.getElementById("view-overview").hidden=(view!=="overview");
     document.getElementById("view-details").hidden=(view!=="details");
     document.getElementById("view-files").hidden=(view!=="files");
+    window.scrollTo(0,0);
     if(view==="overview") renderAll();
     else if(view==="details" && !detailRendered){ detailRendered=true; renderCaseTree(); }
     else if(view==="files" && !filesRendered){ filesRendered=true; renderFiles(); }
