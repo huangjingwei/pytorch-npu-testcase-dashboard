@@ -99,8 +99,10 @@ The output is **two files** that sit side by side and work fully offline:
   `<script src="cases.js"></script>`. Its shape is
   `module -> file -> [[nodeid_suffix, result], ...]`; the nodeid's file prefix is
   stripped and stored once per file, and the UI reconstructs the full nodeid as
-  `file + "::" + suffix`. This keeps `index.html` tiny no matter how many cases
-  there are — hundreds of thousands of cases grow `cases.js`, not the HTML.
+  `file + "::" + suffix`. A second assignment
+  `window.FILES = [[module, file, gen, cases], ...]` (gen = 1/0) backs the 测试文件
+  tab. This keeps `index.html` tiny no matter how many cases there are — hundreds
+  of thousands of cases grow `cases.js`, not the HTML.
 
 The script serializes `DATA` to JSON (a valid JS object literal) and replaces
 everything between the markers; `cases.js` is regenerated from scratch each run.
@@ -128,9 +130,21 @@ regeneration leaves them unchanged:
   (module/file/nodeid), a module `<select>`, and a status `<select>` (with a
   combined `timeout_error` option) — combined with AND. `openCaseDetails` sets the
   relevant ones before switching views.
+- **测试文件 tab.** Groups every test file by module (a collapsible module node
+  whose children are that module's files, each showing path + 已泛化/未泛化 badge +
+  case count for generalized files). Its toolbar has a text search, a module
+  `<select>`, and a gen-status `<select>` (全部/已泛化/未泛化), combined with AND.
+  The file-level charts drill down into it via `window.openFilesTab(filter)`:
+  - 文件泛化率 donut slice / legend item → filter by gen status (已泛化 / 未泛化).
+  - 各模块文件泛化情况 bar segment → filter by module + gen status; a module row's
+    grey (未泛化) area → filter by module only.
+  - Clicking a generalized file row → `window.openCaseFile(module, file)`, which
+    jumps to 用例详情 filtered to that file's cases.
 - **Hover highlight (no border).** Hovering a donut slice pops it outward 5px while
   others dim to 30% opacity; hovering a stacked-bar segment dims the rest and bolds
-  the module label. State is transient (`casePieHover` / `moduleBarHover`), cleared
+  the module label. Applies to both the case charts and the file charts (文件泛化率
+  donut + 各模块文件泛化情况 bar). State is transient
+  (`casePieHover` / `moduleBarHover` / `fileDonutHover` / `fileBarHover`), cleared
   on mouseleave.
 
 ## Instructions
@@ -171,9 +185,13 @@ same folder as `index.html`). Confirm:
   (columns 模块 / 文件 / 已泛化 / 泛化用例 / Passed / Failed / Skipped / Timeout / Error / 通过率;
   sortable headers, no inline result-distribution bar)
 - File-level: 文件泛化率 donut + 各模块文件泛化情况 stacked bar
-- 用例详情 tab: drill-down 模块 → 文件 → 用例 (nodeid + 执行结果), with search / module / status filters and chunked "加载更多" per file
-- Clicking a case-donut slice/legend, a module-bar segment, or a 模块详情汇总 table cell
-  jumps to 用例详情 with the matching filter; hovering highlights without a border
+- 用例详情 tab: drill-down 模块 → 文件 → 用例 (nodeid + 执行结果), with search / module / status
+  filters and chunked "加载更多" per file
+- 测试文件 tab: files grouped by module (collapsible), each file showing path / 已泛化·未泛化
+  badge / case count, with search, module, and gen-status filters
+- Clicking a case-donut slice/legend, a module-bar segment, a 模块详情汇总 table cell, or a
+  file-level donut/bar segment jumps to 用例详情 / 测试文件 with the matching filter; hovering
+  highlights without a border
 - Light/dark toggle re-renders with correct status colors
 
 ## Notes & edge cases

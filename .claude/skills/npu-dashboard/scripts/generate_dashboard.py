@@ -8,9 +8,10 @@ and produces two files:
   object (injected between ``__DATA_BEGIN__`` / ``__DATA_END__``) and all
   rendering code, and loads the case details from a sibling file.
 - ``cases.js`` — a single ``window.CASES = {...}`` assignment holding the compact
-  per-case detail tree (module -> file -> [[nodeid_suffix, result], ...]). This is
-  kept OUT of the HTML so the shell stays small even when there are hundreds of
-  thousands of cases.
+  per-case detail tree (module -> file -> [[nodeid_suffix, result], ...]),
+  plus a flat ``window.FILES = [[module, file, gen, cases], ...]`` list for the
+  测试文件 tab. This is kept OUT of the HTML so the shell stays small even when
+  there are hundreds of thousands of cases.
 
 Both files sit side by side and work fully offline (a ``<script src>`` tag, not a
 blocked ``fetch``). The nodeid's file prefix is stripped and stored once per file;
@@ -70,7 +71,8 @@ def is_matched(nodeid):
 
 
 def build(path):
-    """One pass over the workbook -> (aggregate DATA dict, per-case detail tree)."""
+    """One pass over the workbook -> (aggregate DATA dict, per-case detail tree,
+    flat file list)."""
     # NOTE: not read_only — this workbook reports broken dimension metadata in
     # read-only mode (max_row=1), which would silently truncate iteration.
     wb = openpyxl.load_workbook(path, data_only=True)
@@ -80,6 +82,7 @@ def build(path):
     case_totals = Counter()
     sheets = {}
     detail = {}
+    file_list = []  # [[module, file, gen(0/1), case_count], ...] for the 测试文件 tab
 
     for ws in wb.worksheets:
         rows = ws.iter_rows(values_only=True)
@@ -94,6 +97,7 @@ def build(path):
         files = set()
         gen_files = set()
         status = Counter()
+        file_cases = Counter()
         module_detail = {}
 
         for row in rows:
@@ -118,6 +122,7 @@ def build(path):
                     result = "error"
                 status[result] += 1
                 case_totals[result] += 1
+                file_cases[f] += 1
 
                 # Detail tree: strip the file prefix from the nodeid (stored once
                 # per file); the UI reconstructs the full nodeid as file+"::"+suffix.
@@ -140,6 +145,9 @@ def build(path):
         }
         if module_detail:
             detail[ws.title] = module_detail
+        for f in sorted(files):
+            file_list.append([ws.title, f, 1 if f in gen_files else 0,
+                              file_cases.get(f, 0)])
 
     files_total = len(all_files)
     files_gen = len(all_gen_files)
@@ -162,7 +170,7 @@ def build(path):
         "cases_pass_rate": round(case_totals["passed"] / cases_total * 100, 1) if cases_total else 0.0,
         "sheets": sheets,
     }
-    return data, detail
+    return data, detail, file_list
 
 
 def inject(html, begin, end, body):
@@ -187,7 +195,7 @@ def main(argv=None):
     p.add_argument("--json-out", help="Optional: also write DATA to a .json file")
     args = p.parse_args(argv)
 
-    data, detail = build(args.input)
+    data, detail, file_list = build(args.input)
 
     with open(args.output, "r", encoding="utf-8") as f:
         html = f.read()
@@ -200,6 +208,8 @@ def main(argv=None):
     with open(cases_path, "w", encoding="utf-8") as f:
         f.write("window.CASES=" +
                 json.dumps(detail, ensure_ascii=False, separators=(",", ":")) + ";\n")
+        f.write("window.FILES=" +
+                json.dumps(file_list, ensure_ascii=False, separators=(",", ":")) + ";\n")
 
     if args.json_out:
         with open(args.json_out, "w", encoding="utf-8") as f:
@@ -213,7 +223,7 @@ def main(argv=None):
           f"({data['files_gen_rate']}%)  cases_total={data['cases_total']} "
           f"pass_rate={data['cases_pass_rate']}%")
     print(f"detail modules={len(detail)}  files={n_files}  cases={n_cases}  "
-          f"-> {cases_path} ({cases_size/1024/1024:.2f} MB)")
+          f"files_list={len(file_list)}  -> {cases_path} ({cases_size/1024/1024:.2f} MB)")
     for name, sh in data["sheets"].items():
         print(f"  {name:14s} files={sh['files']:>3} gen={sh['gen_files']:>2} "
               f"na={sh['na_files']:>3} cases={sh['gen_cases']:>5} "
