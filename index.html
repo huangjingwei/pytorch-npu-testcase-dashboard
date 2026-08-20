@@ -236,7 +236,7 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
   <header class="header">
     <div class="header-left">
       <h1>PyTorch NPU 测试用例看板</h1>
-      <p>用例执行结果全景视图 · 更新于 2026-08-12</p>
+      <p>用例执行结果全景视图 · 更新于 2026-08-20</p>
     </div>
     <div class="theme-toggle" role="radiogroup" aria-label="主题切换">
       <button id="btn-light" role="radio" aria-checked="true" class="active">☀ 浅色</button>
@@ -380,7 +380,7 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
     <div class="tree" id="file-list"></div>
   </div>
 
-  <div class="footer">Test Case Dashboard · PyTorch NPU · Generated 2026-08-12</div>
+  <div class="footer">Test Case Dashboard · PyTorch NPU · Generated 2026-08-20</div>
 </div>
 
 <script src="cases.js"></script>
@@ -390,77 +390,66 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
 // ================================================================
 const DATA = /*__DATA_BEGIN__*/
 {
-  "files_total": 1205,
-  "files_gen": 43,
-  "files_na": 1162,
-  "files_gen_rate": 3.6,
-  "cases_total": 52091,
+  "files_total": 87,
+  "files_gen": 87,
+  "files_na": 0,
+  "files_gen_rate": 100.0,
+  "cases_total": 55037,
   "cases": {
-    "passed": 35480,
-    "failed": 12651,
-    "skipped": 3947,
+    "passed": 37330,
+    "failed": 13690,
+    "skipped": 4004,
     "timeout": 0,
     "error": 13
   },
-  "cases_pass_rate": 68.1,
+  "cases_pass_rate": 67.8,
   "sheets": {
     "Core": {
-      "files": 53,
-      "gen_files": 18,
-      "gen_cases": 4814,
-      "passed": 3206,
+      "files": 20,
+      "gen_files": 20,
+      "gen_cases": 4816,
+      "passed": 3208,
       "failed": 1162,
       "skipped": 446,
       "timeout": 0,
       "error": 0,
-      "na_files": 35
+      "na_files": 0
     },
     "Tensor": {
-      "files": 70,
-      "gen_files": 13,
-      "gen_cases": 47024,
-      "passed": 32206,
-      "failed": 11467,
-      "skipped": 3350,
+      "files": 17,
+      "gen_files": 17,
+      "gen_cases": 48746,
+      "passed": 32840,
+      "failed": 12503,
+      "skipped": 3402,
       "timeout": 0,
       "error": 1,
-      "na_files": 57
+      "na_files": 0
     },
     "Distributed": {
-      "files": 285,
-      "gen_files": 4,
-      "gen_cases": 19,
-      "passed": 7,
+      "files": 5,
+      "gen_files": 5,
+      "gen_cases": 23,
+      "passed": 11,
       "failed": 0,
       "skipped": 0,
       "timeout": 0,
       "error": 12,
-      "na_files": 281
+      "na_files": 0
     },
     "Graph": {
-      "files": 584,
-      "gen_files": 6,
-      "gen_cases": 206,
-      "passed": 47,
-      "failed": 8,
-      "skipped": 151,
+      "files": 41,
+      "gen_files": 41,
+      "gen_cases": 1405,
+      "passed": 1243,
+      "failed": 7,
+      "skipped": 155,
       "timeout": 0,
       "error": 0,
-      "na_files": 578
-    },
-    "Math": {
-      "files": 16,
-      "gen_files": 0,
-      "gen_cases": 0,
-      "passed": 0,
-      "failed": 0,
-      "skipped": 0,
-      "timeout": 0,
-      "error": 0,
-      "na_files": 16
+      "na_files": 0
     },
     "Quantization": {
-      "files": 51,
+      "files": 2,
       "gen_files": 2,
       "gen_cases": 28,
       "passed": 14,
@@ -468,18 +457,18 @@ const DATA = /*__DATA_BEGIN__*/
       "skipped": 0,
       "timeout": 0,
       "error": 0,
-      "na_files": 49
+      "na_files": 0
     },
     "Utils": {
-      "files": 146,
-      "gen_files": 0,
-      "gen_cases": 0,
-      "passed": 0,
-      "failed": 0,
-      "skipped": 0,
+      "files": 2,
+      "gen_files": 2,
+      "gen_cases": 19,
+      "passed": 14,
+      "failed": 4,
+      "skipped": 1,
       "timeout": 0,
       "error": 0,
-      "na_files": 146
+      "na_files": 0
     }
   }
 }

@@ -100,13 +100,20 @@ def build(path):
         file_cases = Counter()
         module_detail = {}
 
+        cur_file = None
         for row in rows:
             f = _cell(row, col_file)
             nodeid = _cell(row, col_nodeid)
             result = _cell(row, col_result)
 
-            if not f:
-                continue  # skip blank file cell
+            # The File column is only populated on the first row of each file's
+            # case group; continuation rows leave it blank. Forward-fill it so
+            # every case row still resolves to its owning file.
+            if f:
+                cur_file = f
+            if not cur_file:
+                continue  # blank leading row with no file context yet
+            f = cur_file
 
             files.add(f)
             all_files.add(f)

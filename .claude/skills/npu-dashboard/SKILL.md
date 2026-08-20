@@ -58,6 +58,14 @@ Dependencies: `openpyxl` only (`pip3 install openpyxl`).
   - `nodeid == "(未匹配)"` (or empty) → **file-level** record (未泛化), `执行结果` is `N/A`.
   - otherwise → **case-level** record with a real execution result.
 
+- **`File` is often only filled on the first row of each file's case group** (a
+  merged-cell / fill-down convention): continuation rows leave `File` blank and
+  carry the same file via a chain of `nodeid`s. The generator **forward-fills**
+  the `File` column so every case row still resolves to its owning file — do not
+  count rows with a blank `File` cell as "no file", or the case totals collapse
+  to one case per file. (The earlier convention of filling `File` on every row
+  is also handled — forward-fill is a no-op there.)
+
 ## Transformation (the single source of truth for the numbers)
 
 The script computes exactly the `DATA` object the dashboard renders:
