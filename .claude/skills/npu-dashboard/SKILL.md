@@ -31,65 +31,118 @@ python3 .claude/skills/npu-dashboard/scripts/generate_dashboard.py \
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `--input`, `-i` | `all_testcases.xlsx` | Input workbook (one sheet per module) |
+| `--input`, `-i` | `all_testcases.xlsx` | Input workbook (schema auto-detected, see below) |
 | `--output`, `-o` | `index.html` | HTML to write (the template with `__DATA__` markers) |
 | `--cases-out`, `-c` | `<output dir>/cases.js` | Where to write the per-case detail JS |
+| `--blacklist`, `-b` | `blacklist_testcases.xlsx` next to `--input` (if present) | Blacklist workbook; folds blacklisted cases into the case totals |
+| `--status`, `-s` | `status_tracking.xlsx` next to `--input` (if present) | Tracking workbook (one sheet per module, `File`+`Status`+`Priority`+`Assignee` columns); attaches a status tag (`Done`/`Todo`/`In Progress`/`Backlog`), a priority tag (`High`/`Medium`/`Low`/`Should Not Do`), and the assignee to each file in the 测试文件 tab |
 | `--json-out` | _(none)_ | Optional: also dump the computed `DATA` to a `.json` file |
 
 Dependencies: `openpyxl` only (`pip3 install openpyxl`).
 
 ## Input schema (the raw workbook)
 
-- **One sheet per module.** The sheet *name* becomes the module key (e.g.
-  `Core`, `Tensor`, `Distributed`, `Graph`, `Math`, `Quantization`, `Utils`).
-- **Row 1 is a header row.** Columns are located by name (order-independent),
-  with a positional fallback if the header text differs:
+Two layouts are supported, auto-detected by the sheet names present. Columns are
+always located by header name (order-independent), with a positional fallback if
+the header text differs.
+
+### Current: dedicated `all_files` + `all_testcases` sheets
+
+The module key is the **sheet name** (the original grouping), not the
+`Classification` column. `Classification` is a finer sub-division — the `Tensor`
+sheet, for example, holds `Tensor` / `Tensor Operators` / `Tensor Types` — which
+the generator folds back onto its owning sheet via a `Classification → sheet`
+map built from the per-module case sheets.
+
+- **`all_files`** — one row per test file (the file-level tier):
+  | Column | Header | Meaning |
+  |--------|--------|---------|
+  | `Classification` | `Classification` | Fine sub-division; folded onto its sheet for the module key. Forward-filled (only the first row of each module group is set) |
+  | `File` | `File` | Test file path |
+  | `num` | `num` | Matched case count for that file (`0` → 未泛化) |
+
+- **`all_testcases`** — one row per executed case (the case-level tier), every
+  cell populated:
+  | Column | Header | Meaning |
+  |--------|--------|---------|
+  | `Classification` | `Classification` | Fine sub-division; folded onto its sheet for the module key |
+  | `File` | `File` | Test file path |
+  | `nodeid` | `nodeid` | Concrete test-case id |
+  | `result` | `执行结果` | `passed` / `failed` / `skipped` / `timeout` / `error` |
+
+  Columns `Specialization`, `报错日志`, `skip原生日志首行`, `黑名单跳过`,
+  `不支持`, `不支持原因` are present but not consumed. The per-module sheets
+  (`Core`, `Tensor`, …) are the source of the `Classification → sheet` map and
+  the `all_testcases` sheet is their union; the generator reads only
+  `all_files` + `all_testcases` for the numbers.
+
+### Blacklist workbook (`blacklist_testcases.xlsx`, optional)
+
+A sibling `blacklist_testcases.xlsx` is auto-detected next to `--input` (or
+passed via `--blacklist`). Its single `all_blacklist` sheet adds blacklisted
+cases to the case-level tier (and the detail tree):
 
 | Column | Header | Meaning |
 |--------|--------|---------|
-| `File` | `File` | Test file path |
-| `nodeid` | `nodeid` | Concrete test-case id, or `(未匹配)` when the file has no matched nodeid |
-| `result` | `执行结果` | `passed` / `failed` / `skipped` / `timeout` / `error` / `N/A` |
+| `Classification` | `Classification` | Folded onto its sheet for the module key (forward-filled) |
+| `File` | `File` | Test file path (forward-filled) |
+| `nodeid` | `nodeid` | Concrete test-case id |
+| `skip分类` | `skip分类` | `device not supported` / `cann not supported` / `Running Skiped` (note the typo) |
+| `skip原因` | `skip原因` | Human-readable skip reason (shown in the detail view) |
 
-  Columns `Classification`, `Specialization`, `2.7.1 失败`, `报错日志`,
-  `不支持`, `不支持原因` are present but not consumed by the current dashboard.
+Each blacklisted case becomes `skipped` when its `skip分类` contains `running`
+(case-insensitive — the `Running Skiped` entries), otherwise the new
+`blacklist_unsupported` status. The `skip分类` and `skip原因` are stored in the
+detail tree so the 用例详情 view can show them.
 
-- **Two tiers are encoded in one table** by the `nodeid` column:
-  - `nodeid == "(未匹配)"` (or empty) → **file-level** record (未泛化), `执行结果` is `N/A`.
-  - otherwise → **case-level** record with a real execution result.
+### Legacy: one sheet per module (fallback)
 
-- **`File` is often only filled on the first row of each file's case group** (a
-  merged-cell / fill-down convention): continuation rows leave `File` blank and
-  carry the same file via a chain of `nodeid`s. The generator **forward-fills**
-  the `File` column so every case row still resolves to its owning file — do not
-  count rows with a blank `File` cell as "no file", or the case totals collapse
-  to one case per file. (The earlier convention of filling `File` on every row
-  is also handled — forward-fill is a no-op there.)
+Used when `all_files`/`all_testcases` are absent. The sheet *name* is the module
+key (e.g. `Core`, `Tensor`, `Distributed`, `Graph`, `Math`, `Quantization`,
+`Utils`); `File`/`nodeid`/`执行结果` columns are as above. A `nodeid` of
+`(未匹配)` (or empty) marks a **file-level** (未泛化) record whose `执行结果` is
+`N/A`; otherwise the row is a case. `File` is forward-filled (merged-cell
+convention — only the first row of each file group is filled).
 
 ## Transformation (the single source of truth for the numbers)
 
-The script computes exactly the `DATA` object the dashboard renders:
+The script computes exactly the `DATA` object the dashboard renders. In the
+current schema, `all_files` supplies the file-level tiers, `all_testcases` the
+executed case-level rows, and (optionally) `blacklist_testcases.xlsx` the
+blacklisted cases; module keys are the **sheet names** (a `Classification →
+sheet` map folds the finer sub-divisions back onto their sheet). The
+2026-08-27 sample resolves to:
 
 ```text
-files_total     = unique File values across all sheets            (1205)
-files_gen       = unique File values with ≥1 matched nodeid row   (43)
-files_na        = files_total - files_gen                         (1162)
-files_gen_rate  = files_gen / files_total × 100, 1 decimal        (3.6%)
+files_total     = unique File values in all_files                 (1194)
+files_gen       = unique File values with num > 0                 (113)
+files_snd       = ungeneralized files whose Priority == "Should Not Do" (180)
+files_na        = files_total - files_gen - files_snd             (901, 未泛化)
+files_gen_rate  = files_gen / files_total × 100, 1 decimal        (9.5%)
 
-cases_total     = count of matched rows                           (52091)
-cases.passed|failed|skipped|timeout|error = matched rows by 执行结果
-cases_pass_rate = cases.passed / cases_total × 100, 1 decimal     (68.1%)
+cases_total     = rows in all_testcases + blacklisted cases       (89755)
+cases.passed|failed|timeout|error = executed rows by 执行结果
+cases.skipped   = executed skipped + "Running Skiped" blacklist   (5480)
+cases.blacklist_unsupported = other blacklisted cases             (14984)
+cases_pass_rate = cases.passed / cases_total × 100, 1 decimal     (69.7%)
 
-per sheet:
-  files        = unique File values in that sheet
-  gen_files    = unique File values in that sheet with ≥1 matched row
-  na_files     = files - gen_files
-  gen_cases    = matched rows in that sheet (= sum of the 5 statuses)
-  passed/failed/skipped/timeout/error = matched rows by 执行结果
+per module (grouped by sheet name):
+  files        = unique File values in that module
+  gen_files    = unique File values in that module with num > 0
+  snd_files    = ungeneralized files in that module with Priority == "Should Not Do"
+  na_files     = files - gen_files - snd_files
+  gen_cases    = collected cases in that module (= sum of the 6 statuses)
+  passed/failed/skipped/blacklist_unsupported/timeout/error = collected rows by status
 ```
 
-> A file is either generalized or not — it is never counted in both tiers.
-> `na_files` always equals `files - gen_files`.
+> A file is generalized, needs generalization, or is marked 无需泛化 — it is never
+> counted in more than one file-level tier. `na_files` always equals
+> `files - gen_files - snd_files`; `sum(gen_files) == files_gen` and
+> `sum(snd_files) == files_snd`, and `sum(num) == cases_total`. The 已泛化/未泛化
+> split is driven purely by executed `num`; 无需泛化 is then the subset of 未泛化
+> whose `Priority == "Should Not Do"`. So a file with *only* blacklisted cases
+> (e.g. `test_jit.py`, 30 blacklist entries) still reads as 未泛化 at the file
+> level while its blacklist cases appear in the case detail tree.
 
 ## How the two files are produced
 
@@ -107,10 +160,14 @@ The output is **two files** that sit side by side and work fully offline:
   `<script src="cases.js"></script>`. Its shape is
   `module -> file -> [[nodeid_suffix, result], ...]`; the nodeid's file prefix is
   stripped and stored once per file, and the UI reconstructs the full nodeid as
-  `file + "::" + suffix`. A second assignment
-  `window.FILES = [[module, file, gen, cases], ...]` (gen = 1/0) backs the 测试文件
-  tab. This keeps `index.html` tiny no matter how many cases there are — hundreds
-  of thousands of cases grow `cases.js`, not the HTML.
+  `file + "::" + suffix`. Executed cases are 2-element `[suffix, result]`;
+  blacklisted cases are 4-element `[suffix, result, skip分类, skip原因]` so the
+  用例详情 view can show the skip reason. A second assignment
+  `window.FILES = [[module, file, gen, cases, status, priority, assignee], ...]`
+  (gen = 1/0, cases = executed + blacklisted; status/priority/assignee come from
+  the tracking sheet, `""` when the file is absent) backs the 测试文件 tab. This keeps
+  `index.html` tiny no matter how many cases there are — hundreds of thousands of
+  cases grow `cases.js`, not the HTML.
 
 The script serializes `DATA` to JSON (a valid JS object literal) and replaces
 everything between the markers; `cases.js` is regenerated from scratch each run.
@@ -126,24 +183,32 @@ regeneration leaves them unchanged:
   stacked bar, and the 模块详情汇总 table all jump to the 用例详情 tab via a global
   bridge `window.openCaseDetails(status, module)`:
   - case-donut slice / legend item → filter by that result (`passed` / `failed` /
-    `skipped` / `timeout_error`); the 超时/错误 slice maps to the combined
-    `timeout_error` status.
+    `skipped` / `blacklist_unsupported` / `timeout_error`); the 超时/错误 slice
+    maps to the combined `timeout_error` status.
   - stacked-bar status segment → filter by module + result; a module row's empty
     area → filter by module only.
-  - module-summary table cell → the module name / 泛化用例 cells filter by module
-    only; a Passed/Failed/Skipped/Timeout/Error count filters by module + result;
+  - module-summary table cell → the module name / 收集用例 cells filter by module
+    only; a Passed/Failed/Skipped/Blacklist/Timeout/Error count filters by
+    module + result;
     the 合计 row filters by the global (all-module) + result. Cells of zero-case
     modules are rendered plain (not clickable).
-- **Details filters.** The details toolbar has three filters — text search
-  (module/file/nodeid), a module `<select>`, and a status `<select>` (with a
-  combined `timeout_error` option) — combined with AND. `openCaseDetails` sets the
-  relevant ones before switching views.
+- **Details filters.** The details toolbar has four filters — text search
+  (module/file/nodeid), a module `<select>`, a status `<select>` (with a
+  combined `timeout_error` option), and a skip-category `<select>` (the distinct
+  `skip分类` values, "全部 skip 类别" by default) — combined with AND. `openCaseDetails`
+  sets the relevant ones before switching views.
 - **测试文件 tab.** Groups every test file by module (a collapsible module node
-  whose children are that module's files, each showing path + 已泛化/未泛化 badge +
-  case count for generalized files). Its toolbar has a text search, a module
-  `<select>`, and a gen-status `<select>` (全部/已泛化/未泛化), combined with AND.
+  whose children are that module's files, each showing path followed by fixed-width
+  trailing columns in order 泛化用例数 / assignee / status tag (Done/In
+  Progress/Todo/Backlog) / priority tag (High/Medium/Low/Should Not Do) / 已泛化·未泛化
+  badge — every column always rendered so they line up vertically, empty when a
+  value is missing). Its toolbar has a text search, a module `<select>`, a
+  gen-status `<select>` (全部/已泛化/未泛化/无需泛化), a status `<select>` (全部状态/Done/In
+  Progress/Todo/Backlog/未跟踪), a priority `<select>` (全部优先级/High/Medium/Low/
+  Should Not Do/无优先级), and an assignee `<select>` (全部负责人/…/未分配, populated
+  from the distinct assignees), combined with AND.
   The file-level charts drill down into it via `window.openFilesTab(filter)`:
-  - 文件泛化率 donut slice / legend item → filter by gen status (已泛化 / 未泛化).
+  - 文件泛化率 donut slice / legend item → filter by gen status (已泛化 / 未泛化 / 无需泛化).
   - 各模块文件泛化情况 bar segment → filter by module + gen status; a module row's
     grey (未泛化) area → filter by module only.
   - Clicking a generalized file row → `window.openCaseFile(module, file)`, which
@@ -171,16 +236,18 @@ python3 .claude/skills/npu-dashboard/scripts/generate_dashboard.py \
     --input all_testcases.xlsx --output index.html
 ```
 
-The script prints a verification summary: totals, pass rate, and one line per
-module (files / gen / na / cases / P / F / S / T / E).
+The script prints a verification summary: totals, pass rate, blacklist total,
+and one line per module (files / gen / na / cases / P / F / S / T / E / B).
 
 ### Step 3: Verify the output
 
 Check against the printed summary:
 
-- `files_gen + files_na == files_total`, and sum of per-sheet `files == files_total`
-- sum of per-sheet `gen_files == files_gen`, per-sheet `na_files == files - gen_files`
-- sum of per-sheet `gen_cases == cases_total`, and `passed+failed+skipped+timeout+error == cases_total`
+- `files_gen + files_snd + files_na == files_total`, and sum of per-sheet `files == files_total`
+- sum of per-sheet `gen_files == files_gen`, per-sheet `snd_files == files_snd`,
+  and per-sheet `na_files == files - gen_files - snd_files`
+- sum of per-sheet `gen_cases == cases_total`, and
+  `passed+failed+skipped+blacklist_unsupported+timeout+error == cases_total`
 - pass/fail rates round to the same values shown in the summary tiles
 
 ### Step 4: Sanity-check the HTML
@@ -188,13 +255,14 @@ Check against the printed summary:
 Open `index.html` in a browser (works offline, no CDN; `cases.js` must be in the
 same folder as `index.html`). Confirm:
 
-- Summary strip: 测试文件 / 已泛化文件 / 泛化用例 / 通过用例数 / 失败用例数
+- Summary strip: 测试文件 / 已泛化文件 / 收集用例 / 通过用例数 / 失败用例数
 - Case-level: 用例执行结果分布 donut + 各模块用例执行结果 stacked bar + 模块详情汇总 table
-  (columns 模块 / 文件 / 已泛化 / 泛化用例 / Passed / Failed / Skipped / Timeout / Error / 通过率;
+  (columns 模块 / 文件 / 已泛化 / 收集用例 / Passed / Failed / Skipped / Blacklist / Timeout / Error / 通过率;
   sortable headers, no inline result-distribution bar)
 - File-level: 文件泛化率 donut + 各模块文件泛化情况 stacked bar
-- 用例详情 tab: drill-down 模块 → 文件 → 用例 (nodeid + 执行结果), with search / module / status
-  filters and chunked "加载更多" per file
+- 用例详情 tab: drill-down 模块 → 文件 → 用例 (nodeid + 执行结果), with search / module / status /
+  skip-category filters and chunked "加载更多" per file; blacklisted cases show their `skip分类`
+  as a compact chip (the `skip原因` in its tooltip, keeping rows uncluttered)
 - 测试文件 tab: files grouped by module (collapsible), each file showing path / 已泛化·未泛化
   badge / case count, with search, module, and gen-status filters
 - Clicking a case-donut slice/legend, a module-bar segment, a 模块详情汇总 table cell, or a
