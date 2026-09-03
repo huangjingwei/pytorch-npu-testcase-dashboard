@@ -35,7 +35,7 @@ python3 .claude/skills/npu-dashboard/scripts/generate_dashboard.py \
 | `--output`, `-o` | `index.html` | HTML to write (the template with `__DATA__` markers) |
 | `--cases-out`, `-c` | `<output dir>/cases.js` | Where to write the per-case detail JS |
 | `--blacklist`, `-b` | `blacklist_testcases.xlsx` next to `--input` (if present) | Blacklist workbook; folds blacklisted cases into the case totals |
-| `--status`, `-s` | `status_tracking.xlsx` next to `--input` (if present) | Tracking workbook (one sheet per module, `File`+`Status`+`Priority`+`Assignee` columns); attaches a status tag (`Done`/`Todo`/`In Progress`/`Backlog`), a priority tag (`High`/`Medium`/`Low`/`Should Not Do`), and the assignee to each file in the 测试文件 tab |
+| `--status`, `-s` | `status_tracking.xlsx` or `summary_report.xlsx` next to `--input` (if present) | Tracking workbook (one sheet per module); attaches a status tag (`Done`/`Todo`/`In Progress`/`Backlog`, read from `Status` or `社区status`), a priority tag (`High`/`Medium`/`Low`/`Should Not Do`, from `Priority`), and the assignee (from `Assignee` or `author`) to each file in the 测试文件 tab |
 | `--json-out` | _(none)_ | Optional: also dump the computed `DATA` to a `.json` file |
 
 Dependencies: `openpyxl` only (`pip3 install openpyxl`).
@@ -49,10 +49,11 @@ the header text differs.
 ### Current: dedicated `all_files` + `all_testcases` sheets
 
 The module key is the **sheet name** (the original grouping), not the
-`Classification` column. `Classification` is a finer sub-division — the `Tensor`
-sheet, for example, holds `Tensor` / `Tensor Operators` / `Tensor Types` — which
-the generator folds back onto its owning sheet via a `Classification → sheet`
-map built from the per-module case sheets.
+`Classification` column. `Classification` is a finer sub-division which the
+generator folds back onto its owning sheet via a `Classification → sheet` map
+built from the per-module case sheets. The current schema splits Tensor across
+separate `Tensor Operators` and `Tensor Types` sheets; both are canonicalized
+back onto a single `Tensor` module (see `_canonical_module`).
 
 - **`all_files`** — one row per test file (the file-level tier):
   | Column | Header | Meaning |
@@ -76,24 +77,34 @@ map built from the per-module case sheets.
   the `all_testcases` sheet is their union; the generator reads only
   `all_files` + `all_testcases` for the numbers.
 
-### Blacklist workbook (`blacklist_testcases.xlsx`, optional)
+### Blacklist (in-workbook `黑名单跳过` sheet, or legacy separate workbook)
 
-A sibling `blacklist_testcases.xlsx` is auto-detected next to `--input` (or
-passed via `--blacklist`). Its single `all_blacklist` sheet adds blacklisted
-cases to the case-level tier (and the detail tree):
+Blacklisted/disabled cases are folded into the case-level tier (and the detail
+tree). Two sources are supported, whichever is present:
+
+- **Current schema** — a `黑名单跳过` sheet *inside* the input workbook. Preferred
+  when present; a separate `--blacklist` file is only consulted when the input has
+  no such sheet.
+- **Legacy schema** — a sibling `blacklist_testcases.xlsx` (auto-detected next to
+  `--input`, or passed via `--blacklist`) with a single `all_blacklist` sheet.
+
+Both share the same columns (the in-workbook sheet also carries `skip来源` and
+`issue`, which are ignored):
 
 | Column | Header | Meaning |
 |--------|--------|---------|
 | `Classification` | `Classification` | Folded onto its sheet for the module key (forward-filled) |
 | `File` | `File` | Test file path (forward-filled) |
 | `nodeid` | `nodeid` | Concrete test-case id |
-| `skip分类` | `skip分类` | `device not supported` / `cann not supported` / `Running Skiped` (note the typo) |
+| `skip分类` | `skip分类` | `device not supported` / `cann not supported` / `cann_not_supported` / `dtype_not_supported` / `Running Skiped` (note the typo) |
 | `skip原因` | `skip原因` | Human-readable skip reason (shown in the detail view) |
 
 Each blacklisted case becomes `skipped` when its `skip分类` contains `running`
-(case-insensitive — the `Running Skiped` entries), otherwise the new
-`blacklist_unsupported` status. The `skip分类` and `skip原因` are stored in the
-detail tree so the 用例详情 view can show them.
+(case-insensitive — the legacy `Running Skiped` entries), otherwise the
+`blacklist_unsupported` status. In the current schema the "Running Skiped" cases
+moved out of the blacklist into `all_testcases` itself (as plain `skipped`), so
+only the unsupported categories remain in the sheet. The `skip分类` and `skip原因`
+are stored in the detail tree so the 用例详情 view can show them.
 
 ### Legacy: one sheet per module (fallback)
 
@@ -108,23 +119,23 @@ convention — only the first row of each file group is filled).
 
 The script computes exactly the `DATA` object the dashboard renders. In the
 current schema, `all_files` supplies the file-level tiers, `all_testcases` the
-executed case-level rows, and (optionally) `blacklist_testcases.xlsx` the
-blacklisted cases; module keys are the **sheet names** (a `Classification →
-sheet` map folds the finer sub-divisions back onto their sheet). The
-2026-08-27 sample resolves to:
+executed case-level rows, and the blacklist (in-workbook `黑名单跳过` sheet, or
+legacy separate workbook) the blacklisted cases; module keys are the **sheet
+names** (a `Classification → sheet` map folds the finer sub-divisions back onto
+their sheet). The 2026-09-02 sample resolves to:
 
 ```text
-files_total     = unique File values in all_files                 (1194)
-files_gen       = unique File values with num > 0                 (113)
-files_snd       = ungeneralized files whose Priority == "Should Not Do" (180)
-files_na        = files_total - files_gen - files_snd             (901, 未泛化)
-files_gen_rate  = files_gen / files_total × 100, 1 decimal        (9.5%)
+files_total     = unique File values in all_files                 (1202)
+files_gen       = unique File values with num > 0                 (126)
+files_snd       = ungeneralized files whose Priority == "Should Not Do" (174)
+files_na        = files_total - files_gen - files_snd             (902, 未泛化)
+files_gen_rate  = files_gen / (files_gen + files_na) × 100, 1 dec (12.3%)
 
-cases_total     = rows in all_testcases + blacklisted cases       (89755)
+cases_total     = rows in all_testcases + blacklisted cases       (179066)
 cases.passed|failed|timeout|error = executed rows by 执行结果
-cases.skipped   = executed skipped + "Running Skiped" blacklist   (5480)
-cases.blacklist_unsupported = other blacklisted cases             (14984)
-cases_pass_rate = cases.passed / cases_total × 100, 1 decimal     (69.7%)
+cases.skipped   = executed skipped rows (running-skip included)   (17589)
+cases.blacklist_unsupported = blacklisted (disabled) cases        (16394)
+cases_pass_rate = cases.passed / cases_total × 100, 1 decimal     (77.5%)
 
 per module (grouped by sheet name):
   files        = unique File values in that module

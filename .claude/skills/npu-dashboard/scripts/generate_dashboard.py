@@ -83,6 +83,15 @@ def is_matched(nodeid):
     return bool(nodeid) and nodeid != UNMATCHED_NODEID
 
 
+def _canonical_module(name):
+    """Fold the Tensor sub-sheets back onto ``Tensor`` (the legacy module key).
+    The current schema splits Tensor into separate ``Tensor Operators`` and
+    ``Tensor Types`` sheets; both are reported as a single ``Tensor`` module."""
+    if name in ("Tensor Operators", "Tensor Types"):
+        return "Tensor"
+    return name
+
+
 def build(path, blacklist_path=None):
     """One pass over the workbook -> (aggregate DATA dict, per-case detail tree,
     flat file list)."""
@@ -95,27 +104,27 @@ def build(path, blacklist_path=None):
     return build_legacy(wb)
 
 
-def load_blacklist(path, cls_to_sheet):
-    """Read the blacklist workbook's ``all_blacklist`` sheet and return a list of
-    ``(module, file, nodeid_suffix, result, skip_cls, skip_reason)`` tuples.
+def _is_blacklist_sheet(title):
+    """True for a worksheet holding blacklisted/disabled cases — the current
+    in-workbook ``黑名单跳过`` sheet or the legacy ``all_blacklist`` sheet."""
+    t = str(title).strip()
+    return "黑名单" in t or "blacklist" in t.lower()
+
+
+def _blacklist_entries(header, rows, cls_to_sheet):
+    """Yield ``(module, file, nodeid_suffix, result, skip_cls, skip_reason)``
+    tuples from a blacklist sheet's header + rows.
 
     ``skip分类`` containing ``running`` (case-insensitive) — the "Running Skiped"
     entries — folds into ``skipped``; every other blacklisted case becomes the new
     ``blacklist_unsupported`` status. Both ``Classification`` and ``File`` are
     forward-filled (merged-cell convention)."""
-    wb = openpyxl.load_workbook(path, data_only=True)
-    ws = wb["all_blacklist"]
-    rows = ws.iter_rows(values_only=True)
-    header = next(rows, None)
-    if header is None:
-        return []
     col_cls = _find_column(header, COLUMN_SPEC["class"])
     col_file = _find_column(header, COLUMN_SPEC["file"])
     col_nodeid = _find_column(header, COLUMN_SPEC["nodeid"])
     col_skip_cls = _find_column(header, COLUMN_SPEC["skip_cls"])
     col_skip_reason = _find_column(header, COLUMN_SPEC["skip_reason"])
 
-    entries = []
     cur_cls = None
     cur_file = None
     for row in rows:
@@ -135,8 +144,26 @@ def load_blacklist(path, cls_to_sheet):
         module = cls_to_sheet.get(cur_cls, cur_cls) or "Other"
         result = "skipped" if "running" in skip_cls.lower() else "blacklist_unsupported"
         suffix = nodeid[len(cur_file) + 2:] if nodeid.startswith(cur_file + "::") else nodeid
-        entries.append((module, cur_file, suffix, result, skip_cls, skip_reason))
-    return entries
+        yield (module, cur_file, suffix, result, skip_cls, skip_reason)
+
+
+def load_blacklist(path, cls_to_sheet):
+    """Read a legacy *separate* blacklist workbook and return its ``(module, file,
+    nodeid_suffix, result, skip_cls, skip_reason)`` tuples. Only used when the
+    input workbook has no in-sheet blacklist (``黑名单跳过``)."""
+    wb = openpyxl.load_workbook(path, data_only=True)
+    ws = None
+    for sh in wb.worksheets:
+        if _is_blacklist_sheet(sh.title):
+            ws = sh
+            break
+    if ws is None:
+        return []
+    rows = ws.iter_rows(values_only=True)
+    header = next(rows, None)
+    if header is None:
+        return []
+    return list(_blacklist_entries(header, rows, cls_to_sheet))
 
 
 # Tracked generalization status, one sheet per module. Each row carries a
@@ -156,10 +183,12 @@ def load_status(path):
     assignee)`` map.
 
     Only the module sheets are read (``README`` sheets are skipped). The ``File``
-    column is located by header prefix (the header is ``File(N)`` where N is the
-    per-module file count), and each non-empty file row contributes its status,
-    priority and assignee. Matching is by exact file path, so a dashboard file
-    absent from this sheet simply has no tracking data."""
+    column is located by header prefix (the header may be ``File`` or ``File(N)``
+    where N is the per-module file count); status is read from ``Status`` (or the
+    newer ``社区status``), priority from ``Priority``, and assignee from
+    ``Assignee`` (or the newer ``author``). Each non-empty file row contributes
+    its status, priority and assignee. Matching is by exact file path, so a
+    dashboard file absent from this sheet simply has no tracking data."""
     wb = openpyxl.load_workbook(path, data_only=True)
     track = {}
     for ws in wb.worksheets:
@@ -175,11 +204,11 @@ def load_status(path):
             hs = str(h).strip()
             if col_file is None and hs.startswith("File"):
                 col_file = i
-            elif col_status is None and hs == "Status":
+            elif col_status is None and hs in ("Status", "社区status"):
                 col_status = i
             elif col_priority is None and hs == "Priority":
                 col_priority = i
-            elif col_assignee is None and hs == "Assignee":
+            elif col_assignee is None and hs in ("Assignee", "author"):
                 col_assignee = i
         if col_file is None or col_status is None:
             continue
@@ -214,7 +243,7 @@ def build_two_tier(wb, blacklist_path=None):
     # forward-filled per file within each sheet.
     cls_to_sheet = {}
     for ws in wb.worksheets:
-        if ws.title in ("all_files", "all_testcases"):
+        if ws.title in ("all_files", "all_testcases") or _is_blacklist_sheet(ws.title):
             continue
         rows = ws.iter_rows(values_only=True)
         header = next(rows, None)
@@ -227,7 +256,7 @@ def build_two_tier(wb, blacklist_path=None):
             if cls:
                 cur = cls
             if cur:
-                cls_to_sheet[cur] = ws.title
+                cls_to_sheet[cur] = _canonical_module(ws.title)
 
     # ---- File-level tier: all_files (Classification forward-filled) ----
     ws = wb["all_files"]
@@ -307,16 +336,27 @@ def build_two_tier(wb, blacklist_path=None):
     # `blacklist_unsupported` — rather than a flat list of every category.
     skip_cls_by_status = {"skipped": [], "blacklist_unsupported": []}
     skip_cls_seen = {"skipped": set(), "blacklist_unsupported": set()}
-    if blacklist_path:
-        for module, f, suffix, result, skip_cls, skip_reason in load_blacklist(blacklist_path, cls_to_sheet):
-            blacklist_total += 1
-            if skip_cls and skip_cls not in skip_cls_seen[result]:
-                skip_cls_seen[result].add(skip_cls)
-                skip_cls_by_status[result].append(skip_cls)
-            case_totals[result] += 1
-            module_cases[module][result] += 1
-            module_file_cases[module][f] += 1
-            module_detail[module].setdefault(f, []).append([suffix, result, skip_cls, skip_reason])
+    # Blacklist source: the current schema carries it as an in-workbook
+    # ``黑名单跳过`` sheet; the legacy schema keeps it in a separate workbook.
+    blacklist_entries = []
+    for ws in wb.worksheets:
+        if _is_blacklist_sheet(ws.title):
+            rows = ws.iter_rows(values_only=True)
+            header = next(rows, None)
+            if header is not None:
+                blacklist_entries = list(_blacklist_entries(header, rows, cls_to_sheet))
+            break
+    if not blacklist_entries and blacklist_path:
+        blacklist_entries = load_blacklist(blacklist_path, cls_to_sheet)
+    for module, f, suffix, result, skip_cls, skip_reason in blacklist_entries:
+        blacklist_total += 1
+        if skip_cls and skip_cls not in skip_cls_seen[result]:
+            skip_cls_seen[result].add(skip_cls)
+            skip_cls_by_status[result].append(skip_cls)
+        case_totals[result] += 1
+        module_cases[module][result] += 1
+        module_file_cases[module][f] += 1
+        module_detail[module].setdefault(f, []).append([suffix, result, skip_cls, skip_reason])
 
     # ---- Combine into per-module sheets ----
     for module in sorted(set(module_files) | set(module_cases)):
@@ -511,8 +551,12 @@ def main(argv=None):
 
     status_path = args.status
     if status_path is None:
-        cand = os.path.join(os.path.dirname(args.input) or ".", "status_tracking.xlsx")
-        status_path = cand if os.path.exists(cand) else None
+        d = os.path.dirname(args.input) or "."
+        for name in ("status_tracking.xlsx", "summary_report.xlsx"):
+            cand = os.path.join(d, name)
+            if os.path.exists(cand):
+                status_path = cand
+                break
 
     data, detail, file_list = build(args.input, blacklist)
 
@@ -532,6 +576,9 @@ def main(argv=None):
             snd_by_module[m] += 1
     data["files_snd"] = sum(snd_by_module.values())
     data["files_na"] = data["files_total"] - data["files_gen"] - data["files_snd"]
+    # 泛化率只统计 已泛化 + 未泛化（不含 无需泛化）
+    gen_na = data["files_gen"] + data["files_na"]
+    data["files_gen_rate"] = round(data["files_gen"] / gen_na * 100, 1) if gen_na else 0.0
     for name, sh in data["sheets"].items():
         sh["snd_files"] = snd_by_module.get(name, 0)
         sh["na_files"] = sh["files"] - sh["gen_files"] - sh["snd_files"]

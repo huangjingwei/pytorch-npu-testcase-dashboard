@@ -27,7 +27,7 @@
   --status-blacklist_unsupported: #6b7280;
   --gen-yes:         #2a78d6;
   --gen-no:          #e1e0d9;
-  --gen-snd:         #8f88c4;
+  --gen-snd:         #f0efe9;
   --series-1: #2a78d6;
   --series-2: #eb6834;
   --series-3: #1baf7a;
@@ -61,7 +61,7 @@
     --status-blacklist_unsupported: #9aa4b2;
     --gen-yes:         #3987e5;
     --gen-no:          #383835;
-    --gen-snd:         #6d659f;
+    --gen-snd:         #4b4b47;
     --series-1: #3987e5;
     --series-2: #d95926;
     --series-3: #199e70;
@@ -93,7 +93,7 @@
   --status-blacklist_unsupported: #9aa4b2;
   --gen-yes:         #3987e5;
   --gen-no:          #383835;
-  --gen-snd:         #6d659f;
+  --gen-snd:         #4b4b47;
   --series-1: #3987e5;
   --series-2: #d95926;
   --series-3: #199e70;
@@ -261,7 +261,7 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
   <header class="header">
     <div class="header-left">
       <h1>PyTorch NPU 测试用例看板</h1>
-      <p>用例执行结果全景视图 · 更新于 2026-08-27</p>
+      <p>用例执行结果全景视图 · 更新于 2026-09-02</p>
     </div>
     <div class="theme-toggle" role="radiogroup" aria-label="主题切换">
       <button id="btn-light" role="radio" aria-checked="true" class="active">☀ 浅色</button>
@@ -356,7 +356,7 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
     </div>
     <div class="chart-card" id="card-file-modules">
       <div class="chart-title">各模块文件泛化情况</div>
-      <div class="chart-subtitle">蓝 = 已泛化 · 紫 = 无需泛化 · 灰 = 未泛化</div>
+      <div class="chart-subtitle">蓝 = 已泛化 · 灰 = 未泛化 · 淡灰 = 无需泛化</div>
       <div class="chart-body" style="min-height:200px"><canvas id="chart-file-modules"></canvas></div>
       <div class="chart-legend" id="legend-file-modules"></div>
       <div class="chart-tooltip" id="tooltip-file-modules"></div>
@@ -425,7 +425,7 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
     <div class="tree" id="file-list"></div>
   </div>
 
-  <div class="footer">Test Case Dashboard · PyTorch NPU · Generated 2026-08-27</div>
+  <div class="footer">Test Case Dashboard · PyTorch NPU · Generated 2026-09-02</div>
 </div>
 
 <script src="cases.js"></script>
@@ -435,74 +435,73 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
 // ================================================================
 const DATA = /*__DATA_BEGIN__*/
 {
-  "files_total": 1194,
-  "files_gen": 113,
-  "files_na": 901,
-  "files_gen_rate": 9.5,
-  "cases_total": 89755,
+  "files_total": 1202,
+  "files_gen": 126,
+  "files_na": 902,
+  "files_gen_rate": 12.3,
+  "cases_total": 179066,
   "cases": {
-    "passed": 62528,
-    "failed": 6744,
-    "skipped": 5480,
+    "passed": 138733,
+    "failed": 6320,
+    "skipped": 17589,
     "timeout": 0,
-    "error": 19,
-    "blacklist_unsupported": 14984
+    "error": 30,
+    "blacklist_unsupported": 16394
   },
-  "blacklist_total": 19966,
+  "blacklist_total": 16394,
   "skip_categories": {
-    "skipped": [
-      "Running Skiped"
-    ],
+    "skipped": [],
     "blacklist_unsupported": [
       "device not supported",
-      "cann not supported"
+      "cann not supported",
+      "未分类"
     ]
   },
-  "cases_pass_rate": 69.7,
+  "cases_pass_rate": 77.5,
   "sheets": {
     "Core": {
-      "files": 109,
-      "gen_files": 25,
-      "na_files": 69,
-      "gen_cases": 6121,
-      "passed": 4174,
-      "failed": 535,
-      "skipped": 607,
+      "files": 195,
+      "gen_files": 32,
+      "na_files": 125,
+      "gen_cases": 11639,
+      "passed": 8336,
+      "failed": 446,
+      "skipped": 1931,
       "timeout": 0,
       "error": 0,
-      "blacklist_unsupported": 805,
-      "snd_files": 15
+      "blacklist_unsupported": 926,
+      "snd_files": 38
     },
     "Distributed": {
-      "files": 268,
+      "files": 252,
       "gen_files": 7,
-      "na_files": 261,
-      "gen_cases": 175,
-      "passed": 146,
+      "na_files": 245,
+      "gen_cases": 189,
+      "passed": 148,
       "failed": 0,
       "skipped": 12,
       "timeout": 0,
-      "error": 17,
+      "error": 29,
       "blacklist_unsupported": 0,
       "snd_files": 0
     },
     "Graph": {
-      "files": 568,
-      "gen_files": 51,
-      "na_files": 412,
-      "gen_cases": 2401,
-      "passed": 1993,
-      "failed": 74,
-      "skipped": 334,
+      "files": 536,
+      "gen_files": 45,
+      "na_files": 391,
+      "gen_cases": 2736,
+      "passed": 1760,
+      "failed": 291,
+      "skipped": 684,
       "timeout": 0,
       "error": 0,
-      "blacklist_unsupported": 0,
-      "snd_files": 105
+      "blacklist_unsupported": 1,
+      "snd_files": 100
     },
     "Math": {
-      "files": 37,
+      "files": 16,
       "gen_files": 0,
-      "na_files": 37,
+      "na_files": 16,
       "gen_cases": 0,
       "passed": 0,
       "failed": 0,
@@ -513,25 +512,25 @@ const DATA = /*__DATA_BEGIN__*/
       "snd_files": 0
     },
     "Other": {
-      "files": 2,
-      "gen_files": 0,
-      "na_files": 2,
-      "gen_cases": 0,
-      "passed": 0,
-      "failed": 0,
-      "skipped": 0,
+      "files": 91,
+      "gen_files": 16,
+      "na_files": 75,
+      "gen_cases": 703,
+      "passed": 685,
+      "failed": 14,
+      "skipped": 4,
       "timeout": 0,
       "error": 0,
       "blacklist_unsupported": 0,
       "snd_files": 0
     },
     "Quantization": {
-      "files": 34,
+      "files": 43,
       "gen_files": 2,
-      "na_files": 32,
-      "gen_cases": 30,
-      "passed": 15,
-      "failed": 15,
+      "na_files": 41,
+      "gen_cases": 51,
+      "passed": 34,
+      "failed": 17,
       "skipped": 0,
       "timeout": 0,
       "error": 0,
@@ -540,32 +539,19 @@ const DATA = /*__DATA_BEGIN__*/
     },
     "Tensor": {
       "files": 69,
-      "gen_files": 22,
-      "na_files": 10,
-      "gen_cases": 80759,
-      "passed": 55951,
-      "failed": 6120,
-      "skipped": 4511,
+      "gen_files": 24,
+      "na_files": 9,
+      "gen_cases": 163748,
+      "passed": 127770,
+      "failed": 5552,
+      "skipped": 14958,
       "timeout": 0,
-      "error": 2,
-      "blacklist_unsupported": 14175,
-      "snd_files": 37
-    },
-    "Utils": {
-      "files": 107,
-      "gen_files": 6,
-      "na_files": 78,
-      "gen_cases": 269,
-      "passed": 249,
-      "failed": 0,
-      "skipped": 16,
-      "timeout": 0,
-      "error": 0,
-      "blacklist_unsupported": 4,
-      "snd_files": 23
+      "error": 1,
+      "blacklist_unsupported": 15467,
+      "snd_files": 36
     }
   },
-  "files_snd": 180
+  "files_snd": 174
 }
   /*__DATA_END__*/;
 
@@ -666,6 +652,7 @@ function renderFileDonut(){
     {label:"无需泛化",value:DATA.files_snd,color:getCSS("--gen-snd"),gen:2}
   ];
   const total=DATA.files_total;
+  const rateBase=DATA.files_gen+DATA.files_na; // 泛化率分母 = 已泛化 + 未泛化（不含 无需泛化）
   const hovered=fileDonutHover;
   let startAngle=-Math.PI/2;
   const slices=[];
@@ -695,9 +682,10 @@ function renderFileDonut(){
   ctx.fillStyle=getCSS("--text-muted");ctx.font="11px system-ui,-apple-system,sans-serif";
   ctx.fillText("泛化率",cx,cy+14);
 
-  document.getElementById("legend-file-donut").innerHTML=items.map(it=>
-    `<div class="side-legend-item clickable${it.gen===fileDonutHover?" active":""}" data-gen="${it.gen}"><span class="side-legend-dot" style="background:${it.color}"></span><span class="side-legend-label">${it.label}</span><span class="side-legend-value">${fmt(it.value)} <span class="side-legend-muted">(${pct(it.value,total).toFixed(1)}%)</span></span></div>`
-  ).join("");
+  document.getElementById("legend-file-donut").innerHTML=items.map(it=>{
+    const pctHtml=it.gen===2?"":` <span class="side-legend-muted">(${pct(it.value,rateBase).toFixed(1)}%)</span>`;
+    return `<div class="side-legend-item clickable${it.gen===fileDonutHover?" active":""}" data-gen="${it.gen}"><span class="side-legend-dot" style="background:${it.color}"></span><span class="side-legend-label">${it.label}</span><span class="side-legend-value">${fmt(it.value)}${pctHtml}</span></div>`;
+  }).join("");
 
   const tooltip=document.getElementById("tooltip-file-donut");
   function sliceAt(e){
@@ -715,7 +703,9 @@ function renderFileDonut(){
     if(key!==fileDonutHover){ fileDonutHover=key; renderFileDonut(); }
     if(!hit){tooltip.classList.remove("visible");canvas.style.cursor="default";return;}
     canvas.style.cursor="pointer";
-    tooltip.innerHTML=`<strong>${hit.item.label}</strong><br>${fmt(hit.item.value)} 文件 (${pct(hit.item.value,total).toFixed(1)}%)`;
+    tooltip.innerHTML=hit.item.gen===2
+      ? `<strong>${hit.item.label}</strong><br>${fmt(hit.item.value)} 文件`
+      : `<strong>${hit.item.label}</strong><br>${fmt(hit.item.value)} 文件 (${pct(hit.item.value,rateBase).toFixed(1)}%)`;
     tooltip.classList.add("visible");positionTooltip(tooltip,card,e);
   };
   canvas.onmouseleave=function(){
@@ -758,6 +748,7 @@ function renderFileModules(){
     const bw=(sh.files/maxVal)*plotW;
     const gbw=(sh.gen_files/maxVal)*plotW;
     const sbw=(sh.snd_files/maxVal)*plotW;
+    const naw=(sh.files-sh.gen_files-sh.snd_files)/maxVal*plotW;
     ctx.globalAlpha=(hovered && !segOn(name,0))?0.3:1;
     ctx.fillStyle=getCSS("--gen-no");
     roundRect(ctx,padL,y,bw,barH,0);ctx.fill();
@@ -772,19 +763,20 @@ function renderFileModules(){
     if(sh.snd_files>0){
       ctx.globalAlpha=(hovered && !segOn(name,2))?0.3:1;
       ctx.fillStyle=getCSS("--gen-snd");
-      roundRect(ctx,padL+gbw,y,sbw,barH,0);ctx.fill();
+      roundRect(ctx,padL+gbw+naw,y,sbw,barH,0);ctx.fill();
       ctx.globalAlpha=1;
-      barData.push({x:padL+gbw,y,w:sbw,h:barH,name,files:sh.files,genFiles:sh.gen_files,sndFiles:sh.snd_files,gen:2});
+      barData.push({x:padL+gbw+naw,y,w:sbw,h:barH,name,files:sh.files,genFiles:sh.gen_files,sndFiles:sh.snd_files,gen:2});
     }
-    barData.push({x:padL+gbw+sbw,y,w:Math.max(0,bw-gbw-sbw),h:barH,name,files:sh.files,genFiles:sh.gen_files,sndFiles:sh.snd_files,gen:0});
+    barData.push({x:padL+gbw,y,w:naw,h:barH,name,files:sh.files,genFiles:sh.gen_files,sndFiles:sh.snd_files,gen:0});
     const labelSel=hovered && hovered.name===name;
     ctx.fillStyle=labelSel?getCSS("--text-primary"):getCSS("--text-secondary");
     ctx.font=(labelSel?"600 11px":"11px")+" system-ui,-apple-system,sans-serif";
     ctx.textAlign="right";ctx.textBaseline="middle";
     ctx.fillText(name,padL-8,y+barH/2);
     ctx.textAlign="left";
-    if(sh.gen_files>0){ctx.fillStyle=getCSS("--text-secondary");ctx.fillText(sh.gen_files+"/"+sh.files,padL+bw+6,y+barH/2);}
-    else{ctx.fillStyle=getCSS("--text-muted");ctx.fillText("0/"+sh.files,padL+bw+6,y+barH/2);}
+    const rateDenom=sh.files-sh.snd_files; // 已泛化 + 未泛化
+    if(sh.gen_files>0){ctx.fillStyle=getCSS("--text-secondary");ctx.fillText(sh.gen_files+"/"+rateDenom,padL+bw+6,y+barH/2);}
+    else{ctx.fillStyle=getCSS("--text-muted");ctx.fillText("0/"+rateDenom,padL+bw+6,y+barH/2);}
   });
 
   ctx.strokeStyle=getCSS("--baseline");ctx.lineWidth=1;
@@ -795,8 +787,8 @@ function renderFileModules(){
 
   document.getElementById("legend-file-modules").innerHTML=`
     <div class="chart-legend-item"><span class="chart-legend-dot" style="background:${getCSS('--gen-yes')}"></span>已泛化文件</div>
-    <div class="chart-legend-item"><span class="chart-legend-dot" style="background:${getCSS('--gen-snd')}"></span>无需泛化文件</div>
     <div class="chart-legend-item"><span class="chart-legend-dot" style="background:${getCSS('--gen-no')}"></span>未泛化文件</div>
+    <div class="chart-legend-item"><span class="chart-legend-dot" style="background:${getCSS('--gen-snd')}"></span>无需泛化文件</div>
   `;
 
   const tooltip=document.getElementById("tooltip-file-modules");
@@ -816,13 +808,14 @@ function renderFileModules(){
     if(key!==prev){ fileBarHover=next; renderFileModules(); }
     if(hit){
       canvas.style.cursor="pointer";
+      const base=hit.files-hit.sndFiles; // 泛化率只统计 已泛化 + 未泛化，不含 无需泛化
       if(hit.gen===1){
-        tooltip.innerHTML=`<strong>${hit.name} · 已泛化文件</strong><br>${hit.genFiles}/${hit.files} 文件 (${pct(hit.genFiles,hit.files).toFixed(1)}%)`;
+        tooltip.innerHTML=`<strong>${hit.name} · 已泛化文件</strong><br>${hit.genFiles}/${base} 文件 (${pct(hit.genFiles,base).toFixed(1)}%)`;
       }else if(hit.gen===2){
-        tooltip.innerHTML=`<strong>${hit.name} · 无需泛化文件</strong><br>${hit.sndFiles}/${hit.files} 文件 (${pct(hit.sndFiles,hit.files).toFixed(1)}%)`;
+        tooltip.innerHTML=`<strong>${hit.name} · 无需泛化文件</strong><br>${hit.sndFiles} 文件`;
       }else{
         const na=hit.files-hit.genFiles-hit.sndFiles;
-        tooltip.innerHTML=`<strong>${hit.name} · 未泛化文件</strong><br>${na}/${hit.files} 文件 (${pct(na,hit.files).toFixed(1)}%)`;
+        tooltip.innerHTML=`<strong>${hit.name} · 未泛化文件</strong><br>${na}/${base} 文件 (${pct(na,base).toFixed(1)}%)`;
       }
       tooltip.classList.add("visible");positionTooltip(tooltip,card,e);
       return;
