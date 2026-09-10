@@ -261,7 +261,7 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
   <header class="header">
     <div class="header-left">
       <h1>PyTorch NPU 测试用例看板</h1>
-      <p>用例执行结果全景视图 · 更新于 2026-09-02</p>
+      <p>用例执行结果全景视图 · 更新于 2026-09-10</p>
     </div>
     <div class="theme-toggle" role="radiogroup" aria-label="主题切换">
       <button id="btn-light" role="radio" aria-checked="true" class="active">☀ 浅色</button>
@@ -425,7 +425,7 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
     <div class="tree" id="file-list"></div>
   </div>
 
-  <div class="footer">Test Case Dashboard · PyTorch NPU · Generated 2026-09-02</div>
+  <div class="footer">Test Case Dashboard · PyTorch NPU · Generated 2026-09-10</div>
 </div>
 
 <script src="cases.js"></script>
@@ -435,42 +435,43 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
 // ================================================================
 const DATA = /*__DATA_BEGIN__*/
 {
-  "files_total": 1202,
-  "files_gen": 126,
-  "files_na": 902,
-  "files_gen_rate": 12.3,
-  "cases_total": 179066,
+  "files_total": 1209,
+  "files_gen": 150,
+  "files_na": 885,
+  "files_gen_rate": 14.5,
+  "cases_total": 193370,
   "cases": {
-    "passed": 138733,
-    "failed": 6320,
-    "skipped": 17589,
+    "passed": 150052,
+    "failed": 7157,
+    "skipped": 19242,
     "timeout": 0,
-    "error": 30,
-    "blacklist_unsupported": 16394
+    "error": 31,
+    "blacklist_unsupported": 16888
   },
-  "blacklist_total": 16394,
+  "blacklist_total": 18123,
   "skip_categories": {
-    "skipped": [],
+    "skipped": [
+      "Running Skiped"
+    ],
     "blacklist_unsupported": [
       "device not supported",
-      "cann not supported",
-      "未分类"
+      "cann not supported"
     ]
   },
-  "cases_pass_rate": 77.5,
+  "cases_pass_rate": 77.6,
   "sheets": {
     "Core": {
-      "files": 195,
-      "gen_files": 32,
-      "na_files": 125,
-      "gen_cases": 11639,
-      "passed": 8336,
-      "failed": 446,
-      "skipped": 1931,
+      "files": 53,
+      "gen_files": 26,
+      "na_files": 24,
+      "gen_cases": 11404,
+      "passed": 8223,
+      "failed": 471,
+      "skipped": 1814,
       "timeout": 0,
-      "error": 0,
-      "blacklist_unsupported": 926,
-      "snd_files": 38
+      "error": 1,
+      "blacklist_unsupported": 895,
+      "snd_files": 3
     },
     "Distributed": {
       "files": 252,
@@ -487,12 +488,12 @@ const DATA = /*__DATA_BEGIN__*/
     },
     "Graph": {
       "files": 536,
-      "gen_files": 45,
-      "na_files": 391,
-      "gen_cases": 2736,
-      "passed": 1760,
-      "failed": 291,
-      "skipped": 684,
+      "gen_files": 66,
+      "na_files": 370,
+      "gen_cases": 3398,
+      "passed": 2384,
+      "failed": 328,
+      "skipped": 685,
       "timeout": 0,
       "error": 0,
       "blacklist_unsupported": 1,
@@ -512,13 +513,13 @@ const DATA = /*__DATA_BEGIN__*/
       "snd_files": 0
     },
     "Other": {
-      "files": 91,
+      "files": 98,
       "gen_files": 16,
-      "na_files": 75,
-      "gen_cases": 703,
-      "passed": 685,
+      "na_files": 82,
+      "gen_cases": 731,
+      "passed": 711,
       "failed": 14,
-      "skipped": 4,
+      "skipped": 6,
       "timeout": 0,
       "error": 0,
       "blacklist_unsupported": 0,
@@ -539,16 +540,29 @@ const DATA = /*__DATA_BEGIN__*/
     },
     "Tensor": {
       "files": 69,
-      "gen_files": 24,
-      "na_files": 9,
-      "gen_cases": 163748,
-      "passed": 127770,
-      "failed": 5552,
-      "skipped": 14958,
+      "gen_files": 25,
+      "na_files": 8,
+      "gen_cases": 177112,
+      "passed": 138220,
+      "failed": 6308,
+      "skipped": 16595,
       "timeout": 0,
       "error": 1,
-      "blacklist_unsupported": 15467,
+      "blacklist_unsupported": 15988,
       "snd_files": 36
+    },
+    "Utils": {
+      "files": 142,
+      "gen_files": 8,
+      "na_files": 99,
+      "gen_cases": 485,
+      "passed": 332,
+      "failed": 19,
+      "skipped": 130,
+      "timeout": 0,
+      "error": 0,
+      "blacklist_unsupported": 4,
+      "snd_files": 35
     }
   },
   "files_snd": 174

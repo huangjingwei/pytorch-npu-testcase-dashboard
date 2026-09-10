@@ -48,19 +48,24 @@ the header text differs.
 
 ### Current: dedicated `all_files` + `all_testcases` sheets
 
-The module key is the **sheet name** (the original grouping), not the
-`Classification` column. `Classification` is a finer sub-division which the
-generator folds back onto its owning sheet via a `Classification → sheet` map
-built from the per-module case sheets. The current schema splits Tensor across
-separate `Tensor Operators` and `Tensor Types` sheets; both are canonicalized
-back onto a single `Tensor` module (see `_canonical_module`).
+The module key is the **`sheet` column** on `all_files` — an explicit
+`Core / Distributed / Graph / Math / Other / Quantization / Tensor / Utils`
+assignment added in the 2026-09-10 export. When that column is present it is
+authoritative and a `file → module` map is built from it. Older exports (before
+2026-09-10) lack the column; the generator then falls back to the
+`Classification → sheet` map built from the per-module case sheets (in which
+`Classification` is the module, and `Tensor Operators`/`Tensor Types` are
+canonicalized onto `Tensor`, see `_canonical_module`). The `Specialization`
+column is the finer sub-division in both layouts.
 
 - **`all_files`** — one row per test file (the file-level tier):
   | Column | Header | Meaning |
   |--------|--------|---------|
-  | `Classification` | `Classification` | Fine sub-division; folded onto its sheet for the module key. Forward-filled (only the first row of each module group is set) |
+  | `sheet` | `sheet` | The module (sheet) the file belongs to — the authoritative module key. Forward-filled. Absent in pre-2026-09-10 exports |
+  | `Classification` | `Classification` | Coarse module (`Core`/`Tensor Operators`/`Tensor Types`/…); used only as the module fallback when `sheet` is absent |
+  | `Specialization` | `Specialization` | Fine sub-division (e.g. `Autograd`, `NN`, `CPU`, `Tools`) |
   | `File` | `File` | Test file path |
-  | `num` | `num` | Matched case count for that file (`0` → 未泛化) |
+  | `num` | `num` or `实际运行数量` | Matched case count for that file (`0` → 未泛化); renamed `实际运行数量` in the 2026-09-10 export |
 
 - **`all_testcases`** — one row per executed case (the case-level tier), every
   cell populated:

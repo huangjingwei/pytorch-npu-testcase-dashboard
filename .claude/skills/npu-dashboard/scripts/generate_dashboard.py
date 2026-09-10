@@ -43,11 +43,12 @@ STATUS_KEYS = ["passed", "failed", "skipped", "timeout", "error"]
 # Header names (verbatim) the script looks for, with 0-based positional fallback
 # when the header row does not match (robust to column reordering).
 COLUMN_SPEC = {
+    "sheet":  {"names": ["sheet"], "fallback": None},
     "file":   {"names": ["File"],   "fallback": 2},
     "nodeid": {"names": ["nodeid"], "fallback": 3},
     "result": {"names": ["执行结果"], "fallback": 4},
     "class":  {"names": ["Classification"], "fallback": 0},
-    "num":    {"names": ["num"], "fallback": 3},
+    "num":    {"names": ["num", "实际运行数量"], "fallback": 4},
     "skip_cls":    {"names": ["skip分类"], "fallback": 5},
     "skip_reason": {"names": ["skip原因"], "fallback": 6},
 }
@@ -111,14 +112,16 @@ def _is_blacklist_sheet(title):
     return "黑名单" in t or "blacklist" in t.lower()
 
 
-def _blacklist_entries(header, rows, cls_to_sheet):
+def _blacklist_entries(header, rows, file_module):
     """Yield ``(module, file, nodeid_suffix, result, skip_cls, skip_reason)``
     tuples from a blacklist sheet's header + rows.
 
     ``skip分类`` containing ``running`` (case-insensitive) — the "Running Skiped"
     entries — folds into ``skipped``; every other blacklisted case becomes the new
     ``blacklist_unsupported`` status. Both ``Classification`` and ``File`` are
-    forward-filled (merged-cell convention)."""
+    forward-filled (merged-cell convention). The module is resolved from the
+    ``file -> module`` map (``file_module``), falling back to the forward-filled
+    ``Classification`` when the file is unknown."""
     col_cls = _find_column(header, COLUMN_SPEC["class"])
     col_file = _find_column(header, COLUMN_SPEC["file"])
     col_nodeid = _find_column(header, COLUMN_SPEC["nodeid"])
@@ -141,13 +144,13 @@ def _blacklist_entries(header, rows, cls_to_sheet):
             continue
         skip_cls = _cell(row, col_skip_cls) or ""
         skip_reason = _cell(row, col_skip_reason) or ""
-        module = cls_to_sheet.get(cur_cls, cur_cls) or "Other"
+        module = (file_module or {}).get(cur_file) or cur_cls or "Other"
         result = "skipped" if "running" in skip_cls.lower() else "blacklist_unsupported"
         suffix = nodeid[len(cur_file) + 2:] if nodeid.startswith(cur_file + "::") else nodeid
         yield (module, cur_file, suffix, result, skip_cls, skip_reason)
 
 
-def load_blacklist(path, cls_to_sheet):
+def load_blacklist(path, file_module):
     """Read a legacy *separate* blacklist workbook and return its ``(module, file,
     nodeid_suffix, result, skip_cls, skip_reason)`` tuples. Only used when the
     input workbook has no in-sheet blacklist (``黑名单跳过``)."""
@@ -163,7 +166,7 @@ def load_blacklist(path, cls_to_sheet):
     header = next(rows, None)
     if header is None:
         return []
-    return list(_blacklist_entries(header, rows, cls_to_sheet))
+    return list(_blacklist_entries(header, rows, file_module))
 
 
 # Tracked generalization status, one sheet per module. Each row carries a
@@ -223,14 +226,14 @@ def load_status(path):
 
 
 def build_two_tier(wb, blacklist_path=None):
-    """New schema: a dedicated ``all_files`` sheet (one row per file, ``num`` =
-    matched case count) plus an ``all_testcases`` sheet (one row per case).
+    """New schema: a dedicated ``all_files`` sheet (one row per file, ``num`` /
+    ``实际运行数量`` = matched case count) plus an ``all_testcases`` sheet (one row
+    per case).
 
-    The module key is the *sheet name* (preserving the legacy grouping), not the
-    ``Classification`` column: the per-module case sheets carry a finer
-    ``Classification`` (e.g. the ``Tensor`` sheet holds ``Tensor`` / ``Tensor
-    Operators`` / ``Tensor Types``), so we build a ``Classification -> sheet``
-    map from those sheets and fold the fine values back onto their sheet."""
+    The module key is the ``sheet`` column on ``all_files`` (present in the
+    current export: Core / Distributed / … / Utils / Tensor). When that column is
+    absent (older exports) we fall back to the ``Classification -> sheet`` map
+    built from the per-module case sheets."""
     all_files = set()
     all_gen_files = set()
     case_totals = Counter()
@@ -259,9 +262,14 @@ def build_two_tier(wb, blacklist_path=None):
                 cls_to_sheet[cur] = _canonical_module(ws.title)
 
     # ---- File-level tier: all_files (Classification forward-filled) ----
+    # The current export carries an explicit ``sheet`` column naming the module a
+    # file belongs to (Core / Distributed / … / Utils / Tensor); it is
+    # authoritative when present. Older exports omit it, so we fall back to the
+    # ``Classification -> sheet`` map built from the per-module case sheets.
     ws = wb["all_files"]
     rows = ws.iter_rows(values_only=True)
     header = next(rows, None)
+    col_sheet = _find_column(header, COLUMN_SPEC["sheet"])
     col_cls = _find_column(header, COLUMN_SPEC["class"])
     col_file = _find_column(header, COLUMN_SPEC["file"])
     col_num = _find_column(header, COLUMN_SPEC["num"])
@@ -271,15 +279,23 @@ def build_two_tier(wb, blacklist_path=None):
     module_files = defaultdict(set)
     module_gen_files = defaultdict(set)
 
+    cur_sheet = None
     cur_cls = None
     for row in rows:
+        if col_sheet is not None:
+            s = _cell(row, col_sheet)
+            if s:
+                cur_sheet = s
         cls = _cell(row, col_cls)
         if cls:
             cur_cls = cls
         f = _cell(row, col_file)
         if not f:
             continue
-        module = cls_to_sheet.get(cur_cls, cur_cls) or "Other"
+        if cur_sheet:
+            module = _canonical_module(cur_sheet)
+        else:
+            module = cls_to_sheet.get(cur_cls, cur_cls) or "Other"
         gen = _to_int(_cell(row, col_num)) > 0
         file_module[f] = module
         file_gen[f] = gen
@@ -304,14 +320,16 @@ def build_two_tier(wb, blacklist_path=None):
     module_detail = defaultdict(dict)
 
     for row in rows:
-        module = _cell(row, col_cls)
+        cls = _cell(row, col_cls)
         f = _cell(row, col_file)
         nodeid = _cell(row, col_nodeid)
         result = _cell(row, col_result)
         if not nodeid:
             continue
-        module = (cls_to_sheet.get(module, module) if module
-                  else file_module.get(f) or "Other")
+        # The file -> module map (from all_files) is authoritative; fall back to
+        # the Classification -> sheet map for files it does not know.
+        module = (file_module.get(f)
+                  or (cls_to_sheet.get(cls, cls) if cls else "Other"))
         result = (result or "error").lower()
         if result not in STATUS_KEYS:
             sys.stderr.write(f"[warn] all_testcases: unknown result "
@@ -344,10 +362,10 @@ def build_two_tier(wb, blacklist_path=None):
             rows = ws.iter_rows(values_only=True)
             header = next(rows, None)
             if header is not None:
-                blacklist_entries = list(_blacklist_entries(header, rows, cls_to_sheet))
+                blacklist_entries = list(_blacklist_entries(header, rows, file_module))
             break
     if not blacklist_entries and blacklist_path:
-        blacklist_entries = load_blacklist(blacklist_path, cls_to_sheet)
+        blacklist_entries = load_blacklist(blacklist_path, file_module)
     for module, f, suffix, result, skip_cls, skip_reason in blacklist_entries:
         blacklist_total += 1
         if skip_cls and skip_cls not in skip_cls_seen[result]:
