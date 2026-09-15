@@ -65,7 +65,9 @@ column is the finer sub-division in both layouts.
   | `Classification` | `Classification` | Coarse module (`Core`/`Tensor Operators`/`Tensor Types`/…); used only as the module fallback when `sheet` is absent |
   | `Specialization` | `Specialization` | Fine sub-division (e.g. `Autograd`, `NN`, `CPU`, `Tools`) |
   | `File` | `File` | Test file path |
-  | `num` | `num` or `实际运行数量` | Matched case count for that file (`0` → 未泛化); renamed `实际运行数量` in the 2026-09-10 export |
+  | `num` | `num` or `实际运行数量` | Matched case count for that file (`0` → 未泛化); renamed `实际运行数量` in the 2026-09-10 export. Shown in the 测试文件 tab as 已泛化用例数 (black) |
+  | `cpu` | `CPU预收集` | CPU pre-collected case count (shown in the 测试文件 tab) |
+  | `npu` | `NPU预收集` | NPU pre-collected case count (shown in the 测试文件 tab) |
 
 - **`all_testcases`** — one row per executed case (the case-level tier), every
   cell populated:
@@ -154,7 +156,9 @@ per module (grouped by sheet name):
 > A file is generalized, needs generalization, or is marked 无需泛化 — it is never
 > counted in more than one file-level tier. `na_files` always equals
 > `files - gen_files - snd_files`; `sum(gen_files) == files_gen` and
-> `sum(snd_files) == files_snd`, and `sum(num) == cases_total`. The 已泛化/未泛化
+> `sum(snd_files) == files_snd`, and `sum(num) == executed case rows`
+> (all_testcases rows — `num` is the 已泛化用例数 and does *not* include the
+> blacklist, which is folded into `cases_total` separately). The 已泛化/未泛化
 > split is driven purely by executed `num`; 无需泛化 is then the subset of 未泛化
 > whose `Priority == "Should Not Do"`. So a file with *only* blacklisted cases
 > (e.g. `test_jit.py`, 30 blacklist entries) still reads as 未泛化 at the file
@@ -179,9 +183,10 @@ The output is **two files** that sit side by side and work fully offline:
   `file + "::" + suffix`. Executed cases are 2-element `[suffix, result]`;
   blacklisted cases are 4-element `[suffix, result, skip分类, skip原因]` so the
   用例详情 view can show the skip reason. A second assignment
-  `window.FILES = [[module, file, gen, cases, status, priority, assignee], ...]`
-  (gen = 1/0, cases = executed + blacklisted; status/priority/assignee come from
-  the tracking sheet, `""` when the file is absent) backs the 测试文件 tab. This keeps
+  `window.FILES = [[module, file, gen, num, status, priority, assignee, cpu, npu], ...]`
+  (gen = 1/0, num = `实际运行数量` — the 已泛化用例数 shown in black;
+  cpu/npu = `CPU预收集`/`NPU预收集`; status/priority/assignee come from the
+  tracking sheet, `""` when the file is absent) backs the 测试文件 tab. This keeps
   `index.html` tiny no matter how many cases there are — hundreds of thousands of
   cases grow `cases.js`, not the HTML.
 
@@ -209,20 +214,25 @@ regeneration leaves them unchanged:
     the 合计 row filters by the global (all-module) + result. Cells of zero-case
     modules are rendered plain (not clickable).
 - **Details filters.** The details toolbar has four filters — text search
-  (module/file/nodeid), a module `<select>`, a status `<select>` (with a
-  combined `timeout_error` option), and a skip-category `<select>` (the distinct
-  `skip分类` values, "全部 skip 类别" by default) — combined with AND. `openCaseDetails`
-  sets the relevant ones before switching views.
+  (module/file/nodeid), a module filter, a status filter (with a combined
+  `timeout_error` option), and a skip-category filter (the distinct `skip分类`
+  values, "全部 skip 类别" by default) — combined with AND. The module / status /
+  skip-category filters are **multi-select** checkbox dropdowns (an empty selection
+  means "all"; the dropdown is rendered by a `makeMultiSelect` helper that replaces
+  the native `<select>`). `openCaseDetails` sets the relevant ones before switching
+  views.
 - **测试文件 tab.** Groups every test file by module (a collapsible module node
   whose children are that module's files, each showing path followed by fixed-width
-  trailing columns in order 泛化用例数 / assignee / status tag (Done/In
-  Progress/Todo/Backlog) / priority tag (High/Medium/Low/Should Not Do) / 已泛化·未泛化
-  badge — every column always rendered so they line up vertically, empty when a
-  value is missing). Its toolbar has a text search, a module `<select>`, a
-  gen-status `<select>` (全部/已泛化/未泛化/无需泛化), a status `<select>` (全部状态/Done/In
-  Progress/Todo/Backlog/未跟踪), a priority `<select>` (全部优先级/High/Medium/Low/
-  Should Not Do/无优先级), and an assignee `<select>` (全部负责人/…/未分配, populated
-  from the distinct assignees), combined with AND.
+  trailing columns in order 已泛化用例数 (num, black) / CPU预收集 / NPU预收集 / assignee /
+  status tag (Done/In Progress/Todo/Backlog) / priority tag
+  (High/Medium/Low/Should Not Do) / 已泛化·未泛化 badge — every column always rendered
+  so they line up vertically, empty when a value is missing; a `.tree-head` header
+  row labels the columns). Its toolbar has a text search plus **multi-select**
+  checkbox dropdowns for module, gen-status (全部/已泛化/未泛化/无需泛化), status
+  (全部状态/Done/In Progress/Todo/Backlog/未跟踪), priority (全部优先级/High/Medium/Low/
+  Should Not Do/无优先级), and assignee (全部负责人/…/未分配, populated from the
+  distinct assignees), all combined with AND. The `none` option in the status /
+  priority / assignee filters means "empty field" (未跟踪 / 无优先级 / 未分配).
   The file-level charts drill down into it via `window.openFilesTab(filter)`:
   - 文件泛化率 donut slice / legend item → filter by gen status (已泛化 / 未泛化 / 无需泛化).
   - 各模块文件泛化情况 bar segment → filter by module + gen status; a module row's

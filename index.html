@@ -197,6 +197,18 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
 .details-toolbar select{padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface-card);color:var(--text-primary);font-size:0.8125rem;font-family:inherit;cursor:pointer}
 .detail-count{font-size:0.75rem;color:var(--text-muted);white-space:nowrap}
 
+/* Multi-select filter (replaces the native <select> in the toolbars) */
+.msel{position:relative}
+.msel-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface-card);color:var(--text-primary);font-size:0.8125rem;font-family:inherit;cursor:pointer;white-space:nowrap}
+.msel-btn:hover{border-color:var(--gen-yes)}
+.msel-btn::after{content:"▾";font-size:0.625rem;color:var(--text-muted);line-height:1}
+.msel-btn.active{border-color:var(--gen-yes);color:var(--gen-yes);font-weight:600}
+.msel-btn.active::after{color:var(--gen-yes)}
+.msel-panel{position:absolute;top:calc(100% + 4px);right:0;z-index:30;min-width:200px;max-height:320px;overflow:auto;background:var(--surface-card);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,0.2);padding:6px}
+.msel-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:0.8125rem;cursor:pointer;white-space:nowrap;color:var(--text-primary)}
+.msel-item:hover{background:rgba(128,128,128,0.08)}
+.msel-item input{accent-color:var(--gen-yes);flex:0 0 auto;margin:0}
+
 /* Tree */
 .tree{background:var(--surface-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
 .tree-node>.tree-children{margin-left:20px;border-left:1px solid var(--gridline)}
@@ -248,7 +260,21 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
 .priority-tag.p-shouldnotdo{background:var(--gen-no);color:var(--text-muted)}
 .file-assignee{flex:0 0 110px;font-size:0.6875rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tree-row.file-link{cursor:pointer}
-.file-count{flex:0 0 76px;text-align:right;font-size:0.6875rem;color:var(--text-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+/* 已泛化用例数 = the generalized case count (num/实际运行数量), shown in the primary
+   text colour (black in light theme); CPU/NPU 预收集 are the pre-collected counts. */
+.file-count{flex:0 0 76px;text-align:center;font-size:0.6875rem;font-weight:600;color:var(--text-primary);font-variant-numeric:tabular-nums;white-space:nowrap}
+.file-cpu,.file-npu{flex:0 0 76px;text-align:center;font-size:0.6875rem;color:var(--text-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+/* 已泛化用例数 == CPU预收集 == NPU预收集 (num>0): the file's executed cases exactly
+   match both pre-collection counts, so the 已泛化用例数 turns green (CPU/NPU stay muted). */
+.file-count.file-green{color:var(--status-passed)}
+/* Column header row above the 测试文件 tree (aligns with the indented file rows). */
+.tree-head{display:flex;align-items:center;gap:8px;padding:5px 12px;margin-left:45px;border-bottom:1px solid var(--gridline);background:var(--surface-page);font-size:0.6875rem;font-weight:600;color:var(--text-muted);white-space:nowrap}
+.tree-head .tree-head-file{flex:1;min-width:0}
+.tree-head .tree-head-num{flex:0 0 76px;text-align:center}
+.tree-head .tree-head-assignee{flex:0 0 110px}
+.tree-head .tree-head-status{flex:0 0 92px}
+.tree-head .tree-head-priority{flex:0 0 108px}
+.tree-head .tree-head-gen{flex:0 0 52px;text-align:center}
 
 @media(max-width:1100px){.summary-strip{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:900px){.chart-grid{grid-template-columns:1fr}}
@@ -383,7 +409,7 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
         <option value="timeout">Timeout</option>
         <option value="error">Error</option>
       </select>
-      <select id="case-skip" aria-label="按 skip 类别筛选" hidden>
+      <select id="case-skip" aria-label="按 skip 类别筛选">
         <option value="all">全部 skip 类别</option>
       </select>
       <span class="detail-count" id="case-count"></span>
@@ -436,19 +462,19 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
 const DATA = /*__DATA_BEGIN__*/
 {
   "files_total": 1209,
-  "files_gen": 150,
-  "files_na": 885,
-  "files_gen_rate": 14.5,
-  "cases_total": 193370,
+  "files_gen": 191,
+  "files_na": 844,
+  "files_gen_rate": 18.5,
+  "cases_total": 195647,
   "cases": {
-    "passed": 150052,
-    "failed": 7157,
-    "skipped": 19242,
+    "passed": 151408,
+    "failed": 7866,
+    "skipped": 19397,
     "timeout": 0,
-    "error": 31,
-    "blacklist_unsupported": 16888
+    "error": 126,
+    "blacklist_unsupported": 16850
   },
-  "blacklist_total": 18123,
+  "blacklist_total": 18050,
   "skip_categories": {
     "skipped": [
       "Running Skiped"
@@ -458,44 +484,44 @@ const DATA = /*__DATA_BEGIN__*/
       "cann not supported"
     ]
   },
-  "cases_pass_rate": 77.6,
+  "cases_pass_rate": 77.4,
   "sheets": {
     "Core": {
       "files": 53,
       "gen_files": 26,
       "na_files": 24,
       "gen_cases": 11404,
-      "passed": 8223,
-      "failed": 471,
+      "passed": 8237,
+      "failed": 504,
       "skipped": 1814,
       "timeout": 0,
-      "error": 1,
-      "blacklist_unsupported": 895,
+      "error": 0,
+      "blacklist_unsupported": 849,
       "snd_files": 3
     },
     "Distributed": {
       "files": 252,
-      "gen_files": 7,
-      "na_files": 245,
-      "gen_cases": 189,
-      "passed": 148,
+      "gen_files": 17,
+      "na_files": 235,
+      "gen_cases": 315,
+      "passed": 184,
       "failed": 0,
-      "skipped": 12,
+      "skipped": 13,
       "timeout": 0,
-      "error": 29,
+      "error": 118,
       "blacklist_unsupported": 0,
       "snd_files": 0
     },
     "Graph": {
       "files": 536,
-      "gen_files": 66,
-      "na_files": 370,
-      "gen_cases": 3398,
-      "passed": 2384,
-      "failed": 328,
-      "skipped": 685,
+      "gen_files": 86,
+      "na_files": 350,
+      "gen_cases": 5087,
+      "passed": 3258,
+      "failed": 1003,
+      "skipped": 819,
       "timeout": 0,
-      "error": 0,
+      "error": 6,
       "blacklist_unsupported": 1,
       "snd_files": 100
     },
@@ -514,10 +540,10 @@ const DATA = /*__DATA_BEGIN__*/
     },
     "Other": {
       "files": 98,
-      "gen_files": 16,
-      "na_files": 82,
-      "gen_cases": 731,
-      "passed": 711,
+      "gen_files": 17,
+      "na_files": 81,
+      "gen_cases": 733,
+      "passed": 713,
       "failed": 14,
       "skipped": 6,
       "timeout": 0,
@@ -527,11 +553,11 @@ const DATA = /*__DATA_BEGIN__*/
     },
     "Quantization": {
       "files": 43,
-      "gen_files": 2,
-      "na_files": 41,
-      "gen_cases": 51,
-      "passed": 34,
-      "failed": 17,
+      "gen_files": 11,
+      "na_files": 32,
+      "gen_cases": 108,
+      "passed": 88,
+      "failed": 20,
       "skipped": 0,
       "timeout": 0,
       "error": 0,
@@ -540,15 +566,15 @@ const DATA = /*__DATA_BEGIN__*/
     },
     "Tensor": {
       "files": 69,
-      "gen_files": 25,
-      "na_files": 8,
-      "gen_cases": 177112,
-      "passed": 138220,
-      "failed": 6308,
-      "skipped": 16595,
+      "gen_files": 26,
+      "na_files": 7,
+      "gen_cases": 177515,
+      "passed": 138596,
+      "failed": 6306,
+      "skipped": 16615,
       "timeout": 0,
-      "error": 1,
-      "blacklist_unsupported": 15988,
+      "error": 2,
+      "blacklist_unsupported": 15996,
       "snd_files": 36
     },
     "Utils": {
@@ -1215,42 +1241,117 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
     return {label:sc, cls:"other"};
   }
 
-  // (Re)populate the skip-category filter from the distinct skip分类 values that
-  // actually exist for the given status — DATA.skip_categories is keyed by result
-  // status. Keeps the leading "全部 skip 类别" option and drops any prior category
-  // options, then resets the selection.
-  function populateSkipFilter(status){
-    while(skipEl.options.length > 1) skipEl.remove(1);
-    const list = (DATA.skip_categories && DATA.skip_categories[status]) || [];
-    list.forEach(function(sc){
-      const o=document.createElement("option");
-      o.value=sc; o.textContent=skipTag(sc).label;
-      skipEl.appendChild(o);
+  // Populate the skip-category filter once with the union of skip分类 values across
+  // every status (only skipped / blacklist cases carry a skip分类; the filter matches
+  // on that raw value regardless of the status filter). Labels are the compact
+  // Running/CANN/Device tags from skipTag().
+  function initSkipFilter(){
+    const seen={};
+    Object.keys(DATA.skip_categories||{}).forEach(function(st){
+      (DATA.skip_categories[st]||[]).forEach(function(sc){
+        if(seen[sc]) return;
+        seen[sc]=1;
+        const o=document.createElement("option");
+        o.value=sc; o.textContent=skipTag(sc).label;
+        skipEl.appendChild(o);
+      });
     });
-    skipEl.value="all";
+  }
+
+  // Turn a native <select> (whose first option is the "all"/全部 sentinel) into a
+  // checkbox-dropdown multi-select. Empty selection == "all"; any other value —
+  // including "none" (the "empty field" sentinel in the file filters) — is toggled
+  // like a normal value.
+  function makeMultiSelect(select,onChange){
+    const opts=[];
+    for(let i=0;i<select.options.length;i++) opts.push({value:select.options[i].value,label:select.options[i].textContent});
+    const allLabel=opts.length?opts[0].label:"全部";
+    const items=opts.slice(1);
+    const values=new Set();
+
+    const wrap=document.createElement("div"); wrap.className="msel";
+    select.parentNode.replaceChild(wrap,select);
+
+    const btn=document.createElement("button"); btn.type="button"; btn.className="msel-btn";
+    btn.setAttribute("aria-haspopup","listbox");
+    wrap.appendChild(btn);
+
+    const panel=document.createElement("div"); panel.className="msel-panel"; panel.hidden=true;
+    wrap.appendChild(panel);
+
+    const allRow=document.createElement("label"); allRow.className="msel-item";
+    const allCb=document.createElement("input"); allCb.type="checkbox";
+    allRow.appendChild(allCb); allRow.appendChild(document.createTextNode(allLabel));
+    panel.appendChild(allRow);
+
+    const itemEls=[];
+    items.forEach(function(it){
+      const row=document.createElement("label"); row.className="msel-item";
+      const cb=document.createElement("input"); cb.type="checkbox";
+      row.appendChild(cb); row.appendChild(document.createTextNode(it.label));
+      panel.appendChild(row);
+      itemEls.push({value:it.value,cb:cb,label:it.label});
+    });
+
+    function labelFor(v){ for(let i=0;i<itemEls.length;i++) if(itemEls[i].value===v) return itemEls[i].label; return v; }
+    function update(){
+      const n=values.size;
+      if(n===0) btn.textContent=allLabel;
+      else if(n===1){ let one=""; values.forEach(function(v){ one=v; }); btn.textContent=labelFor(one); }
+      else btn.textContent="已选 "+n+" 项";
+      btn.classList.toggle("active",n>0);
+      allCb.checked=(n===0);
+      itemEls.forEach(function(e){ e.cb.checked=values.has(e.value); });
+    }
+
+    function closeAll(){
+      document.querySelectorAll(".msel-panel").forEach(function(p){ p.hidden=true; });
+      document.querySelectorAll(".msel-btn").forEach(function(b){ b.setAttribute("aria-expanded","false"); });
+    }
+    btn.addEventListener("click",function(ev){
+      ev.stopPropagation();
+      const wasOpen=!panel.hidden;
+      closeAll();
+      panel.hidden=wasOpen;
+      btn.setAttribute("aria-expanded",wasOpen?"false":"true");
+    });
+    document.addEventListener("click",function(ev){
+      if(!wrap.contains(ev.target)){ panel.hidden=true; btn.setAttribute("aria-expanded","false"); }
+    });
+
+    allCb.addEventListener("change",function(){ values.clear(); update(); if(onChange)onChange(); });
+    itemEls.forEach(function(e){
+      e.cb.addEventListener("change",function(){
+        if(e.cb.checked) values.add(e.value); else values.delete(e.value);
+        update(); if(onChange)onChange();
+      });
+    });
+
+    update();
+    return {
+      values:values,
+      set:function(arr){ values.clear(); (arr||[]).forEach(function(v){ if(v&&v!=="all") values.add(v); }); update(); },
+      clear:function(){ values.clear(); update(); }
+    };
   }
 
   function q(){ return (searchEl.value||"").trim().toLowerCase(); }
-  function sf(){ return statusEl.value; }
-  function mf(){ return moduleEl.value; }
-  function skf(){ return skipEl.value; }
-  // The skip-category filter only applies to skipped / blacklist cases, so only
-  // reveal it when the status filter is narrowed to one of those two; hide (and
-  // reset) it otherwise so it can't silently filter out other results. When
-  // shown, repopulate it so it offers only the categories relevant to that status
-  // (e.g. "cann not supported" never appears under `skipped`).
-  function syncSkipFilter(){
-    const s=sf();
-    const show=s==="skipped"||s==="blacklist_unsupported";
-    skipEl.hidden=!show;
-    if(show) populateSkipFilter(s);
-    else skipEl.value="all";
+  function matchesStatusSet(result,sel){
+    if(sel.size===0) return true;
+    if(sel.has(result)) return true;
+    if(sel.has("timeout_error") && (result==="timeout"||result==="error")) return true;
+    return false;
   }
-  function matchesStatus(result,sfv){
-    if(sfv==="all") return true;
-    if(sfv==="timeout_error") return result==="timeout"||result==="error";
-    return result===sfv;
-  }
+
+  initSkipFilter();
+  const mselModule = makeMultiSelect(moduleEl, function(){ renderCaseTree(); });
+  const mselStatus = makeMultiSelect(statusEl, function(){ renderCaseTree(); });
+  const mselSkip   = makeMultiSelect(skipEl,   function(){ renderCaseTree(); });
+  const mselFileModule   = makeMultiSelect(fileModuleEl,   function(){ renderFiles(); });
+  const mselFileGen      = makeMultiSelect(fileGenEl,      function(){ renderFiles(); });
+  const mselFileStatus   = makeMultiSelect(fileStatusEl,   function(){ renderFiles(); });
+  const mselFilePriority = makeMultiSelect(filePriorityEl, function(){ renderFiles(); });
+  const mselFileAssignee = makeMultiSelect(fileAssigneeEl, function(){ renderFiles(); });
 
   function el(tag,cls,text){
     const e=document.createElement(tag);
@@ -1264,12 +1365,15 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
     return c;
   }
 
-  // Filter CASES into {module:{file:[matching [suffix,result]]}} + total.
+  // Filter CASES into {module:{file:[matching [suffix,result]]}} + total. Each
+  // multi-select filter is a Set; an empty Set means "all".
   function buildFiltered(){
-    const qq=q(), sfv=sf(), mfv=mf(), scv=skf(), hasQ=!!qq, hasS=sfv!=="all", hasM=mfv!=="all", hasSc=scv!=="all";
+    const qq=q(), hasQ=!!qq;
+    const statusSel=mselStatus.values, moduleSel=mselModule.values, skipSel=mselSkip.values;
+    const hasS=statusSel.size>0, hasM=moduleSel.size>0, hasSc=skipSel.size>0;
     const out={}; let total=0;
     for(const mod in CASES){
-      if(hasM && mod!==mfv) continue;
+      if(hasM && !moduleSel.has(mod)) continue;
       const files=CASES[mod];
       const modHit=hasQ && mod.toLowerCase().indexOf(qq)>=0;
       const outFiles={};
@@ -1278,8 +1382,8 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
         const matched=[];
         for(let i=0;i<cases.length;i++){
           const c=cases[i];
-          if(hasS && !matchesStatus(c[1],sfv)) continue;
-          if(hasSc && c[2]!==scv) continue;
+          if(hasS && !matchesStatusSet(c[1],statusSel)) continue;
+          if(hasSc && !skipSel.has(c[2])) continue;
           if(hasQ && !modHit && (file+"::"+c[0]).toLowerCase().indexOf(qq)<0) continue;
           matched.push(c);
         }
@@ -1367,7 +1471,7 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
     const mods=Object.keys(res.out);
     if(!mods.length){ treeEl.appendChild(el("div","tree-empty","无匹配用例")); return; }
     for(const mod of mods) treeEl.appendChild(moduleNode(mod,res.out[mod]));
-    if(q()||sf()!=="all"||skf()!=="all") autoExpand();
+    if(q()||mselStatus.values.size>0||mselSkip.values.size>0) autoExpand();
   }
 
   treeEl.addEventListener("click",function(e){
@@ -1383,9 +1487,6 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
   });
 
   searchEl.addEventListener("input",function(){ renderCaseTree(); });
-  statusEl.addEventListener("change",function(){ syncSkipFilter(); renderCaseTree(); });
-  moduleEl.addEventListener("change",function(){ renderCaseTree(); });
-  skipEl.addEventListener("change",function(){ renderCaseTree(); });
   searchEl.addEventListener("keydown",function(e){
     if(e.key==="Escape"){ searchEl.value=""; renderCaseTree(); }
   });
@@ -1397,23 +1498,44 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
     if(text){ s.classList.add(mod); s.textContent=text; s.title=text; }
     return s;
   }
-  function fileRow(item){ // [module, file, gen(0/1), case_count, status, priority, assignee]
-    const mod=item[0], path=item[1], gen=item[2], cases=item[3];
+  function fileRow(item){ // [module, file, gen(0/1), num, status, priority, assignee, cpu, npu]
+    const mod=item[0], path=item[1], gen=item[2], num=item[3];
     const status=item[4]||"", priority=item[5]||"", assignee=item[6]||"";
+    const cpu=item[7]||0, npu=item[8]||0;
     const r=el("div","tree-row"); r.dataset.level="file";
     r.dataset.module=mod; r.dataset.file=path;
     if(gen) r.classList.add("file-link");
     r.appendChild(caret(true));
     const lbl=el("span","tree-label mono",path); lbl.title=path; r.appendChild(lbl);
-    // Trailing columns are fixed-width and always rendered (empty slot when not
-    // applicable) so count / assignee / status / priority / gen line up vertically.
-    r.appendChild(el("span","file-count", gen?fmt(cases)+" 用例":""));
+    // Trailing columns are fixed-width and always rendered so 已泛化用例 / CPU / NPU /
+    // assignee / status / priority / gen line up vertically. The 已泛化用例数 (num /
+    // 实际运行数量) renders in the primary (black) colour; CPU/NPU 预收集 are muted.
+    // When executed == CPU pre-collected == NPU pre-collected (num>0), only the
+    // 已泛化用例数 turns green (CPU/NPU keep their muted colour).
+    const matched = num > 0 && num === cpu && cpu === npu;
+    const cnt=el("span","file-count"+(matched?" file-green":""), gen?fmt(num):"");
+    if(gen) cnt.title="已泛化用例数";
+    r.appendChild(cnt);
+    const cpuEl=el("span","file-cpu", fmt(cpu)); cpuEl.title="CPU 预收集用例数"; r.appendChild(cpuEl);
+    const npuEl=el("span","file-npu", fmt(npu)); npuEl.title="NPU 预收集用例数"; r.appendChild(npuEl);
     const as=el("span","file-assignee", assignee); if(assignee) as.title=assignee;
     r.appendChild(as);
     r.appendChild(pill("status-tag", status, "st-"+status.toLowerCase().replace(/\s+/g,"")));
     r.appendChild(pill("priority-tag", priority, "p-"+priority.toLowerCase().replace(/\s+/g,"")));
     r.appendChild(el("span","gen-badge "+(gen?"g-yes":"g-no"), gen?"已泛化":"未泛化"));
     return r;
+  }
+  function fileHead(){
+    const h=el("div","tree-head");
+    h.appendChild(el("span","tree-head-file","文件"));
+    h.appendChild(el("span","tree-head-num","已泛化用例"));
+    h.appendChild(el("span","tree-head-num","CPU预收集"));
+    h.appendChild(el("span","tree-head-num","NPU预收集"));
+    h.appendChild(el("span","tree-head-assignee","负责人"));
+    h.appendChild(el("span","tree-head-status","状态"));
+    h.appendChild(el("span","tree-head-priority","优先级"));
+    h.appendChild(el("span","tree-head-gen","泛化状态"));
+    return h;
   }
   function fileModuleNode(mod,items){
     const node=el("div","tree-node");
@@ -1431,22 +1553,34 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
   }
   function renderFiles(){
     const qq=(fileSearchEl.value||"").trim().toLowerCase();
-    const mfv=fileModuleEl.value, gfv=fileGenEl.value, sfv=fileStatusEl.value;
-    const pfv=filePriorityEl.value, afv=fileAssigneeEl.value;
+    const mSel=mselFileModule.values, gSel=mselFileGen.values, sSel=mselFileStatus.values;
+    const pSel=mselFilePriority.values, aSel=mselFileAssignee.values;
     let list=FILES;
-    if(mfv!=="all") list=list.filter(function(it){return it[0]===mfv;});
-    if(gfv==="gen") list=list.filter(function(it){return it[2]===1;});
-    if(gfv==="na")  list=list.filter(function(it){return it[2]===0 && it[5]!=="Should Not Do";});
-    if(gfv==="snd") list=list.filter(function(it){return it[2]===0 && it[5]==="Should Not Do";});
-    if(sfv==="none") list=list.filter(function(it){return !it[4];});
-    else if(sfv!=="all") list=list.filter(function(it){return it[4]===sfv;});
-    if(pfv==="none") list=list.filter(function(it){return !it[5];});
-    else if(pfv!=="all") list=list.filter(function(it){return it[5]===pfv;});
-    if(afv==="none") list=list.filter(function(it){return !it[6];});
-    else if(afv!=="all") list=list.filter(function(it){return it[6]===afv;});
+    if(mSel.size) list=list.filter(function(it){return mSel.has(it[0]);});
+    if(gSel.size) list=list.filter(function(it){
+      if(gSel.has("gen") && it[2]===1) return true;
+      if(gSel.has("na")  && it[2]===0 && it[5]!=="Should Not Do") return true;
+      if(gSel.has("snd") && it[2]===0 && it[5]==="Should Not Do") return true;
+      return false;
+    });
+    // "none" in the file filters means "empty field"; a file matches when either
+    // its value is selected, or the value is empty and "none" is selected.
+    if(sSel.size) list=list.filter(function(it){
+      const v=it[4]||"";
+      return v ? sSel.has(v) : sSel.has("none");
+    });
+    if(pSel.size) list=list.filter(function(it){
+      const v=it[5]||"";
+      return v ? pSel.has(v) : pSel.has("none");
+    });
+    if(aSel.size) list=list.filter(function(it){
+      const v=it[6]||"";
+      return v ? aSel.has(v) : aSel.has("none");
+    });
     if(qq) list=list.filter(function(it){return it[1].toLowerCase().indexOf(qq)>=0;});
     fileCountEl.textContent="匹配 "+fmt(list.length)+" 个文件";
     fileListEl.textContent="";
+    fileListEl.appendChild(fileHead());
     if(!list.length){ fileListEl.appendChild(el("div","tree-empty","无匹配文件")); return; }
     const groups={};
     list.forEach(function(it){ (groups[it[0]]=groups[it[0]]||[]).push(it); });
@@ -1463,11 +1597,6 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
     rowEl.querySelector(".tree-caret").classList.toggle("open",opening);
   });
   fileSearchEl.addEventListener("input",function(){ renderFiles(); });
-  fileModuleEl.addEventListener("change",function(){ renderFiles(); });
-  fileGenEl.addEventListener("change",function(){ renderFiles(); });
-  fileStatusEl.addEventListener("change",function(){ renderFiles(); });
-  filePriorityEl.addEventListener("change",function(){ renderFiles(); });
-  fileAssigneeEl.addEventListener("change",function(){ renderFiles(); });
 
   let detailRendered=false;
   function showView(view){
@@ -1490,10 +1619,9 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
   // Jump target for overview charts: filter the case tree by status and switch
   // to the details tab. "timeout_error" is the combined slice in the case pie.
   window.openCaseDetails=function(status,module){
-    statusEl.value=status||"all";
-    moduleEl.value=(module && CASES[module]) ? module : "all";
-    skipEl.value="all";
-    syncSkipFilter();
+    mselStatus.set(status && status!=="all" ? [status] : []);
+    mselModule.set((module && CASES[module]) ? [module] : []);
+    mselSkip.clear();
     renderCaseTree();
     detailRendered=true;
     showView("details");
@@ -1507,11 +1635,11 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
   // Jump target for file-level charts: filter the 测试文件 tab and switch to it.
   function openFilesTab(filter){
     filter=filter||{};
-    fileModuleEl.value=filter.module||"all";
-    fileGenEl.value=filter.gen==null?"all":(filter.gen===1?"gen":filter.gen===2?"snd":"na");
-    fileStatusEl.value="all";
-    filePriorityEl.value="all";
-    fileAssigneeEl.value="all";
+    mselFileModule.set(filter.module ? [filter.module] : []);
+    mselFileGen.set(filter.gen==null ? [] : [filter.gen===1?"gen":filter.gen===2?"snd":"na"]);
+    mselFileStatus.clear();
+    mselFilePriority.clear();
+    mselFileAssignee.clear();
     fileSearchEl.value="";
     renderFiles();
     filesRendered=true;

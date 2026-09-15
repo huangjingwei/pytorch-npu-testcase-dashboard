@@ -49,6 +49,8 @@ COLUMN_SPEC = {
     "result": {"names": ["执行结果"], "fallback": 4},
     "class":  {"names": ["Classification"], "fallback": 0},
     "num":    {"names": ["num", "实际运行数量"], "fallback": 4},
+    "cpu":    {"names": ["CPU预收集"], "fallback": None},
+    "npu":    {"names": ["NPU预收集"], "fallback": None},
     "skip_cls":    {"names": ["skip分类"], "fallback": 5},
     "skip_reason": {"names": ["skip原因"], "fallback": 6},
 }
@@ -239,7 +241,7 @@ def build_two_tier(wb, blacklist_path=None):
     case_totals = Counter()
     sheets = {}
     detail = {}
-    file_list = []  # [[module, file, gen(0/1), case_count], ...] for the 测试文件 tab
+    file_list = []  # [[module, file, gen(0/1), num, cpu, npu], ...] for the 测试文件 tab
 
     # Map each Classification value to its owning sheet name (module). The
     # per-module case sheets are the source of truth here; Classification is
@@ -273,9 +275,14 @@ def build_two_tier(wb, blacklist_path=None):
     col_cls = _find_column(header, COLUMN_SPEC["class"])
     col_file = _find_column(header, COLUMN_SPEC["file"])
     col_num = _find_column(header, COLUMN_SPEC["num"])
+    col_cpu = _find_column(header, COLUMN_SPEC["cpu"])
+    col_npu = _find_column(header, COLUMN_SPEC["npu"])
 
     file_module = {}
     file_gen = {}
+    file_num = {}
+    file_cpu = {}
+    file_npu = {}
     module_files = defaultdict(set)
     module_gen_files = defaultdict(set)
 
@@ -299,6 +306,9 @@ def build_two_tier(wb, blacklist_path=None):
         gen = _to_int(_cell(row, col_num)) > 0
         file_module[f] = module
         file_gen[f] = gen
+        file_num[f] = _to_int(_cell(row, col_num))
+        file_cpu[f] = _to_int(_cell(row, col_cpu))
+        file_npu[f] = _to_int(_cell(row, col_npu))
         module_files[module].add(f)
         if gen:
             module_gen_files[module].add(f)
@@ -397,7 +407,9 @@ def build_two_tier(wb, blacklist_path=None):
             detail[module] = module_detail[module]
         for f in sorted(files):
             file_list.append([module, f, 1 if f in gen_files else 0,
-                              module_file_cases[module].get(f, 0)])
+                              file_num.get(f, 0),
+                              file_cpu.get(f, 0),
+                              file_npu.get(f, 0)])
 
     files_total = len(all_files)
     files_gen = len(all_gen_files)
@@ -434,7 +446,7 @@ def build_legacy(wb):
     case_totals = Counter()
     sheets = {}
     detail = {}
-    file_list = []  # [[module, file, gen(0/1), case_count], ...] for the 测试文件 tab
+    file_list = []  # [[module, file, gen(0/1), num, cpu, npu], ...] for the 测试文件 tab
 
     for ws in wb.worksheets:
         rows = ws.iter_rows(values_only=True)
@@ -507,7 +519,7 @@ def build_legacy(wb):
             detail[ws.title] = module_detail
         for f in sorted(files):
             file_list.append([ws.title, f, 1 if f in gen_files else 0,
-                              file_cases.get(f, 0)])
+                              file_cases.get(f, 0), 0, 0])
 
     files_total = len(all_files)
     files_gen = len(all_gen_files)
@@ -579,17 +591,18 @@ def main(argv=None):
     data, detail, file_list = build(args.input, blacklist)
 
     # Attach the tracked status/priority/assignee (if any) to each file list
-    # entry, as 5th/6th/7th elements. Files absent from the tracking sheet carry
-    # "" for each (untracked).
+    # entry, as 5th/6th/7th elements, and keep the pre-collection counts
+    # (num/cpu/npu from all_files) as the final 8th/9th/10th. Files absent from
+    # the tracking sheet carry "" for each (untracked).
     track = load_status(status_path) if status_path else {}
-    file_list = [[m, f, g, c] + list(track.get(f, ("", "", "")))
-                 for m, f, g, c in file_list]
+    file_list = [[m, f, g, num] + list(track.get(f, ("", "", ""))) + [cpu, npu]
+                 for m, f, g, num, cpu, npu in file_list]
 
     # "Should Not Do" (无需泛化) files: ungeneralized files whose priority marks
     # them as not needing generalization. Fold them out of the 未泛化 bucket so the
     # file-level charts can show them as a distinct third category.
     snd_by_module = defaultdict(int)
-    for m, f, g, c, status, priority, assignee in file_list:
+    for m, f, g, num, status, priority, assignee, cpu, npu in file_list:
         if g == 0 and priority == "Should Not Do":
             snd_by_module[m] += 1
     data["files_snd"] = sum(snd_by_module.values())
