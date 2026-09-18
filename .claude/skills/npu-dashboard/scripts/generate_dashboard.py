@@ -420,6 +420,8 @@ def build_two_tier(wb, blacklist_path=None):
     files_gen = len(all_gen_files)
     files_na = files_total - files_gen
     cases_total = sum(case_totals.values())
+    watch_total = (case_totals["passed"] + case_totals["failed"]
+                   + case_totals["timeout"] + case_totals["error"])
 
     data = {
         "files_total": files_total,
@@ -437,7 +439,7 @@ def build_two_tier(wb, blacklist_path=None):
         },
         "blacklist_total": blacklist_total,
         "skip_categories": skip_cls_by_status,
-        "cases_pass_rate": round(case_totals["passed"] / cases_total * 100, 1) if cases_total else 0.0,
+        "cases_pass_rate": round(case_totals["passed"] / watch_total * 100, 1) if watch_total else 0.0,
         "sheets": sheets,
     }
     return data, detail, file_list
@@ -530,6 +532,8 @@ def build_legacy(wb):
     files_gen = len(all_gen_files)
     files_na = files_total - files_gen
     cases_total = sum(case_totals.values())
+    watch_total = (case_totals["passed"] + case_totals["failed"]
+                   + case_totals["timeout"] + case_totals["error"])
 
     data = {
         "files_total": files_total,
@@ -547,7 +551,7 @@ def build_legacy(wb):
         },
         "blacklist_total": 0,
         "skip_categories": {"skipped": [], "blacklist_unsupported": []},
-        "cases_pass_rate": round(case_totals["passed"] / cases_total * 100, 1) if cases_total else 0.0,
+        "cases_pass_rate": round(case_totals["passed"] / watch_total * 100, 1) if watch_total else 0.0,
         "sheets": sheets,
     }
     return data, detail, file_list
