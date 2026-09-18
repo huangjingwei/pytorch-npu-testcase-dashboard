@@ -261,11 +261,12 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
 .file-assignee{flex:0 0 110px;font-size:0.6875rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tree-row.file-link{cursor:pointer}
 /* 已泛化用例数 = the generalized case count (num/实际运行数量), shown in the primary
-   text colour (black in light theme); CPU/NPU 预收集 are the pre-collected counts. */
+   text colour (black in light theme); 公共/CPU/NPU 预收集 are the pre-collected counts. */
 .file-count{flex:0 0 76px;text-align:center;font-size:0.6875rem;font-weight:600;color:var(--text-primary);font-variant-numeric:tabular-nums;white-space:nowrap}
-.file-cpu,.file-npu{flex:0 0 76px;text-align:center;font-size:0.6875rem;color:var(--text-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
-/* 已泛化用例数 == CPU预收集 == NPU预收集 (num>0): the file's executed cases exactly
-   match both pre-collection counts, so the 已泛化用例数 turns green (CPU/NPU stay muted). */
+.file-pub,.file-cpu,.file-npu{flex:0 0 76px;text-align:center;font-size:0.6875rem;color:var(--text-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+/* 已泛化用例数 == 公共收集 + CPU预收集 + NPU预收集 (num>0): the file's executed cases
+   exactly match the sum of the three pre-collection counts, so the 已泛化用例数 turns
+   green (公共/CPU/NPU stay muted). */
 .file-count.file-green{color:var(--status-passed)}
 /* Column header row above the 测试文件 tree (aligns with the indented file rows). */
 .tree-head{display:flex;align-items:center;gap:8px;padding:5px 12px;margin-left:45px;border-bottom:1px solid var(--gridline);background:var(--surface-page);font-size:0.6875rem;font-weight:600;color:var(--text-muted);white-space:nowrap}
@@ -461,20 +462,20 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
 // ================================================================
 const DATA = /*__DATA_BEGIN__*/
 {
-  "files_total": 1209,
-  "files_gen": 191,
-  "files_na": 844,
-  "files_gen_rate": 18.5,
-  "cases_total": 195647,
+  "files_total": 1217,
+  "files_gen": 254,
+  "files_na": 789,
+  "files_gen_rate": 24.4,
+  "cases_total": 252310,
   "cases": {
-    "passed": 151408,
-    "failed": 7866,
-    "skipped": 19397,
+    "passed": 191324,
+    "failed": 8709,
+    "skipped": 35239,
     "timeout": 0,
-    "error": 126,
-    "blacklist_unsupported": 16850
+    "error": 125,
+    "blacklist_unsupported": 16913
   },
-  "blacklist_total": 18050,
+  "blacklist_total": 18113,
   "skip_categories": {
     "skipped": [
       "Running Skiped"
@@ -484,15 +485,15 @@ const DATA = /*__DATA_BEGIN__*/
       "cann not supported"
     ]
   },
-  "cases_pass_rate": 77.4,
+  "cases_pass_rate": 75.8,
   "sheets": {
     "Core": {
       "files": 53,
-      "gen_files": 26,
-      "na_files": 24,
-      "gen_cases": 11404,
-      "passed": 8237,
-      "failed": 504,
+      "gen_files": 27,
+      "na_files": 23,
+      "gen_cases": 11431,
+      "passed": 8266,
+      "failed": 502,
       "skipped": 1814,
       "timeout": 0,
       "error": 0,
@@ -501,12 +502,12 @@ const DATA = /*__DATA_BEGIN__*/
     },
     "Distributed": {
       "files": 252,
-      "gen_files": 17,
-      "na_files": 235,
-      "gen_cases": 315,
-      "passed": 184,
+      "gen_files": 36,
+      "na_files": 216,
+      "gen_cases": 385,
+      "passed": 252,
       "failed": 0,
-      "skipped": 13,
+      "skipped": 15,
       "timeout": 0,
       "error": 118,
       "blacklist_unsupported": 0,
@@ -514,15 +515,15 @@ const DATA = /*__DATA_BEGIN__*/
     },
     "Graph": {
       "files": 536,
-      "gen_files": 86,
-      "na_files": 350,
-      "gen_cases": 5087,
-      "passed": 3258,
-      "failed": 1003,
-      "skipped": 819,
+      "gen_files": 123,
+      "na_files": 313,
+      "gen_cases": 61475,
+      "passed": 42952,
+      "failed": 1799,
+      "skipped": 16654,
       "timeout": 0,
       "error": 6,
-      "blacklist_unsupported": 1,
+      "blacklist_unsupported": 64,
       "snd_files": 100
     },
     "Math": {
@@ -539,13 +540,13 @@ const DATA = /*__DATA_BEGIN__*/
       "snd_files": 0
     },
     "Other": {
-      "files": 98,
-      "gen_files": 17,
-      "na_files": 81,
-      "gen_cases": 733,
-      "passed": 713,
+      "files": 106,
+      "gen_files": 19,
+      "na_files": 87,
+      "gen_cases": 783,
+      "passed": 761,
       "failed": 14,
-      "skipped": 6,
+      "skipped": 8,
       "timeout": 0,
       "error": 0,
       "blacklist_unsupported": 0,
@@ -553,11 +554,11 @@ const DATA = /*__DATA_BEGIN__*/
     },
     "Quantization": {
       "files": 43,
-      "gen_files": 11,
-      "na_files": 32,
-      "gen_cases": 108,
-      "passed": 88,
-      "failed": 20,
+      "gen_files": 15,
+      "na_files": 28,
+      "gen_cases": 226,
+      "passed": 162,
+      "failed": 64,
       "skipped": 0,
       "timeout": 0,
       "error": 0,
@@ -568,12 +569,12 @@ const DATA = /*__DATA_BEGIN__*/
       "files": 69,
       "gen_files": 26,
       "na_files": 7,
-      "gen_cases": 177515,
-      "passed": 138596,
-      "failed": 6306,
-      "skipped": 16615,
+      "gen_cases": 177525,
+      "passed": 138599,
+      "failed": 6311,
+      "skipped": 16618,
       "timeout": 0,
-      "error": 2,
+      "error": 1,
       "blacklist_unsupported": 15996,
       "snd_files": 36
     },
@@ -1498,24 +1499,25 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
     if(text){ s.classList.add(mod); s.textContent=text; s.title=text; }
     return s;
   }
-  function fileRow(item){ // [module, file, gen(0/1), num, status, priority, assignee, cpu, npu]
+  function fileRow(item){ // [module, file, gen(0/1), num, status, priority, assignee, cpu, npu, pub]
     const mod=item[0], path=item[1], gen=item[2], num=item[3];
     const status=item[4]||"", priority=item[5]||"", assignee=item[6]||"";
-    const cpu=item[7]||0, npu=item[8]||0;
+    const cpu=item[7]||0, npu=item[8]||0, pub=item[9]||0;
     const r=el("div","tree-row"); r.dataset.level="file";
     r.dataset.module=mod; r.dataset.file=path;
     if(gen) r.classList.add("file-link");
     r.appendChild(caret(true));
     const lbl=el("span","tree-label mono",path); lbl.title=path; r.appendChild(lbl);
-    // Trailing columns are fixed-width and always rendered so 已泛化用例 / CPU / NPU /
-    // assignee / status / priority / gen line up vertically. The 已泛化用例数 (num /
-    // 实际运行数量) renders in the primary (black) colour; CPU/NPU 预收集 are muted.
-    // When executed == CPU pre-collected == NPU pre-collected (num>0), only the
-    // 已泛化用例数 turns green (CPU/NPU keep their muted colour).
-    const matched = num > 0 && num === cpu && cpu === npu;
+    // Trailing columns are fixed-width and always rendered so 已泛化用例 / 公共 / CPU /
+    // NPU / assignee / status / priority / gen line up vertically. The 已泛化用例数
+    // (num / 实际运行数量) renders in the primary (black) colour; 公共/CPU/NPU 预收集
+    // are muted. When executed == 公共收集 + CPU预收集 + NPU预收集 (num>0), only the
+    // 已泛化用例数 turns green (公共/CPU/NPU keep their muted colour).
+    const matched = num > 0 && num === pub + cpu + npu;
     const cnt=el("span","file-count"+(matched?" file-green":""), gen?fmt(num):"");
     if(gen) cnt.title="已泛化用例数";
     r.appendChild(cnt);
+    const pubEl=el("span","file-pub", fmt(pub)); pubEl.title="公共收集用例数"; r.appendChild(pubEl);
     const cpuEl=el("span","file-cpu", fmt(cpu)); cpuEl.title="CPU 预收集用例数"; r.appendChild(cpuEl);
     const npuEl=el("span","file-npu", fmt(npu)); npuEl.title="NPU 预收集用例数"; r.appendChild(npuEl);
     const as=el("span","file-assignee", assignee); if(assignee) as.title=assignee;
@@ -1529,6 +1531,7 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
     const h=el("div","tree-head");
     h.appendChild(el("span","tree-head-file","文件"));
     h.appendChild(el("span","tree-head-num","已泛化用例"));
+    h.appendChild(el("span","tree-head-num","公共收集"));
     h.appendChild(el("span","tree-head-num","CPU预收集"));
     h.appendChild(el("span","tree-head-num","NPU预收集"));
     h.appendChild(el("span","tree-head-assignee","负责人"));

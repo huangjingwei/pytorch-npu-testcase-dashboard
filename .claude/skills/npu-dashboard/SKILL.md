@@ -66,8 +66,9 @@ column is the finer sub-division in both layouts.
   | `Specialization` | `Specialization` | Fine sub-division (e.g. `Autograd`, `NN`, `CPU`, `Tools`) |
   | `File` | `File` | Test file path |
   | `num` | `num` or `实际运行数量` | Matched case count for that file (`0` → 未泛化); renamed `实际运行数量` in the 2026-09-10 export. Shown in the 测试文件 tab as 已泛化用例数 (black) |
-  | `cpu` | `CPU预收集` | CPU pre-collected case count (shown in the 测试文件 tab) |
-  | `npu` | `NPU预收集` | NPU pre-collected case count (shown in the 测试文件 tab) |
+  | `pub` | `预收集-公共用例` | Common (公共) pre-collected case count (shown in the 测试文件 tab); added in the 2026-09-17 export |
+  | `cpu` | `CPU预收集` or `预收集-仅CPU` | CPU pre-collected case count (shown in the 测试文件 tab); renamed `预收集-仅CPU` in the 2026-09-17 export |
+  | `npu` | `NPU预收集` or `预收集-仅NPU` | NPU pre-collected case count (shown in the 测试文件 tab); renamed `预收集-仅NPU` in the 2026-09-17 export |
 
 - **`all_testcases`** — one row per executed case (the case-level tier), every
   cell populated:
@@ -183,9 +184,9 @@ The output is **two files** that sit side by side and work fully offline:
   `file + "::" + suffix`. Executed cases are 2-element `[suffix, result]`;
   blacklisted cases are 4-element `[suffix, result, skip分类, skip原因]` so the
   用例详情 view can show the skip reason. A second assignment
-  `window.FILES = [[module, file, gen, num, status, priority, assignee, cpu, npu], ...]`
+  `window.FILES = [[module, file, gen, num, status, priority, assignee, cpu, npu, pub], ...]`
   (gen = 1/0, num = `实际运行数量` — the 已泛化用例数 shown in black;
-  cpu/npu = `CPU预收集`/`NPU预收集`; status/priority/assignee come from the
+  cpu/npu/pub = `CPU预收集`/`NPU预收集`/`预收集-公共用例`; status/priority/assignee come from the
   tracking sheet, `""` when the file is absent) backs the 测试文件 tab. This keeps
   `index.html` tiny no matter how many cases there are — hundreds of thousands of
   cases grow `cases.js`, not the HTML.
@@ -223,7 +224,7 @@ regeneration leaves them unchanged:
   views.
 - **测试文件 tab.** Groups every test file by module (a collapsible module node
   whose children are that module's files, each showing path followed by fixed-width
-  trailing columns in order 已泛化用例数 (num, black) / CPU预收集 / NPU预收集 / assignee /
+  trailing columns in order 已泛化用例数 (num, black) / 公共收集 / CPU预收集 / NPU预收集 / assignee /
   status tag (Done/In Progress/Todo/Backlog) / priority tag
   (High/Medium/Low/Should Not Do) / 已泛化·未泛化 badge — every column always rendered
   so they line up vertically, empty when a value is missing; a `.tree-head` header
