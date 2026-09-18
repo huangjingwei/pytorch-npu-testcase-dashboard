@@ -1,6 +1,6 @@
 ---
 name: npu-dashboard
-description: Regenerate the offline PyTorch NPU test-case dashboard from a raw results workbook (all_testcases.xlsx). Aggregates per-module file-level generalization and case-level execution results into index.html and writes the per-case detail tree to a sibling cases.js, keeping the HTML small even for hundreds of thousands of cases. Use when asked to regenerate or refresh the test dashboard, rebuild dashboard numbers, or produce the same dashboard from a new test-results Excel. Triggered by phrases like "生成看板", "刷新看板", "数据看板", "测试看板", "测试用例看板", "dashboard".
+description: Regenerate the offline TorchNPU 社区用例看板 (PyTorch NPU community test-case dashboard) from a raw results workbook (all_testcases.xlsx). Aggregates per-module file-level generalization and case-level execution results into index.html and writes the per-case detail tree to a sibling cases.js, keeping the HTML small even for hundreds of thousands of cases. Use when asked to regenerate or refresh the test dashboard, rebuild dashboard numbers, or produce the same dashboard from a new test-results Excel. Triggered by phrases like "生成看板", "刷新看板", "数据看板", "测试看板", "测试用例看板", "dashboard".
 allowed-tools: Read, Write, Edit, Bash
 ---
 
@@ -143,7 +143,8 @@ cases_total     = rows in all_testcases + blacklisted cases       (179066)
 cases.passed|failed|timeout|error = executed rows by 执行结果
 cases.skipped   = executed skipped rows (running-skip included)   (17589)
 cases.blacklist_unsupported = blacklisted (disabled) cases        (16394)
-cases_pass_rate = cases.passed / cases_total × 100, 1 decimal     (77.5%)
+watch_total     = passed + failed + timeout + error               (看护口径, 不含 skipped/blacklist)
+cases_pass_rate = cases.passed / watch_total × 100, 1 decimal     (看护通过率)
 
 per module (grouped by sheet name):
   files        = unique File values in that module
@@ -204,9 +205,14 @@ regeneration leaves them unchanged:
 - **Click-to-drill.** The case donut (slices + legend items), the 各模块用例执行结果
   stacked bar, and the 模块详情汇总 table all jump to the 用例详情 tab via a global
   bridge `window.openCaseDetails(status, module)`:
-  - case-donut slice / legend item → filter by that result (`passed` / `failed` /
-    `skipped` / `blacklist_unsupported` / `timeout_error`); the 超时/错误 slice
-    maps to the combined `timeout_error` status.
+  - case-donut slice / legend item → filter by that result. The donut only plots
+    the 看护 (watch) statuses — `passed` / `failed` / `timeout_error` — and its
+    slice angles, percentages and center 看护通过率 all use
+    `watch_total = passed + failed + timeout + error` as the denominator.
+    `skipped` and `blacklist_unsupported` are excluded from the pie and its
+    percentages and rendered as muted side legend entries below a divider (still
+    clickable to filter); the 超时/错误 slice maps to the combined `timeout_error`
+    status.
   - stacked-bar status segment → filter by module + result; a module row's empty
     area → filter by module only.
   - module-summary table cell → the module name / 收集用例 cells filter by module
@@ -275,16 +281,19 @@ Check against the printed summary:
   and per-sheet `na_files == files - gen_files - snd_files`
 - sum of per-sheet `gen_cases == cases_total`, and
   `passed+failed+skipped+blacklist_unsupported+timeout+error == cases_total`
-- pass/fail rates round to the same values shown in the summary tiles
+- 看护通过率 `passed / watch_total` matches the pie center and the 模块详情汇总 通过率 column
+  (watch_total = passed + failed + timeout + error, 不含 skipped/blacklist)
 
 ### Step 4: Sanity-check the HTML
 
 Open `index.html` in a browser (works offline, no CDN; `cases.js` must be in the
 same folder as `index.html`). Confirm:
 
-- Summary strip: 测试文件 / 已泛化文件 / 收集用例 / 通过用例数 / 失败用例数
+- Overview top: 用例收集进度 bar — 已收集 (实际运行 + blacklist) / 目标 (公共 + CPU + NPU 收集)
+- Summary strip: 测试文件 / 已泛化文件 / 收集用例 / 看护用例数 (通过 + 失败 + 错误/超时) / 失败用例数
 - Case-level: 用例执行结果分布 donut + 各模块用例执行结果 stacked bar + 模块详情汇总 table
-  (columns 模块 / 文件 / 已泛化 / 收集用例 / Passed / Failed / Skipped / Blacklist / Timeout / Error / 通过率;
+  (columns 模块 / 文件 / 已泛化 / 收集用例 / Passed / Failed / Skipped / Blacklist / Timeout / Error / 通过率,
+  where 通过率 is 看护口径 — `passed / (passed + failed + timeout + error)`, excluding skipped/blacklist;
   sortable headers, no inline result-distribution bar)
 - File-level: 文件泛化率 donut + 各模块文件泛化情况 stacked bar
 - 用例详情 tab: drill-down 模块 → 文件 → 用例 (nodeid + 执行结果), with search / module / status /
