@@ -217,7 +217,11 @@ regeneration leaves them unchanged:
   - stacked-bar status segment → filter by module + result; a module row's empty
     area → filter by module only. In this chart the `skipped` and
     `blacklist_unsupported` segments are drawn desaturated (muted) to downplay the
-    non-看护 statuses (via a `desaturate()` helper, legend dots matched).
+    non-看护 statuses (via a `desaturate()` helper, legend dots matched). Each
+    module row also draws a thin blue **收集目标** bar above the stacked bar — the
+    module's should-collect total (`公共 + CPU + NPU` 预收集, same口径 as the overview
+    `用例目标`) — as a non-clickable reference on the same axis; the axis max is
+    `max(已收集最大值, 目标最大值)`. Both bars are equal height.
   - module-summary table cell → the module name / 收集用例 cells filter by module
     only; a Passed/Failed/Skipped/Blacklist/Timeout/Error count filters by
     module + result;
@@ -302,7 +306,8 @@ same folder as `index.html`). Confirm:
   收集测试文件 (`files_total`, sub 含无需泛化的文件 `files_snd`) / 收集测试用例 (`cases_total`,
   sub 含 blacklist `blacklist_total`) / 已泛化文件 (`files_gen`, sub 泛化率) / 看护用例数
   (通过 + 失败 + 错误/超时).
-- Case-level: 用例执行结果分布 donut + 各模块用例执行结果 stacked bar + 模块详情汇总 table
+- Case-level: 用例执行结果分布 donut + 各模块用例执行结果 stacked bar (each row topped by a blue
+  收集目标 reference bar) + 模块详情汇总 table
   (columns 模块 / 文件 / 已泛化 / 收集用例 / Passed / Failed / Skipped / Blacklist / Timeout / Error / 通过率,
   where 通过率 is 看护口径 — `passed / (passed + failed + timeout + error)`, excluding skipped/blacklist;
   sortable headers, no inline result-distribution bar)

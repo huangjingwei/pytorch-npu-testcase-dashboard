@@ -349,7 +349,7 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
     <div class="chart-card" id="card-modules">
       <div class="chart-title">各模块用例执行结果</div>
       <div class="chart-subtitle">按模块堆叠 · 点击色块/模块跳转用例详情</div>
-      <div class="chart-body" style="min-height:200px"><canvas id="chart-modules"></canvas></div>
+      <div class="chart-body" style="min-height:280px"><canvas id="chart-modules"></canvas></div>
       <div class="chart-legend" id="legend-modules"></div>
       <div class="chart-tooltip" id="tooltip-modules"></div>
     </div>
@@ -994,13 +994,25 @@ function renderModules(){
   const canvas=document.getElementById("chart-modules");
   const card=cardOf(canvas);
   const body=card.querySelector(".chart-body");
-  const W=body.getBoundingClientRect().width, H=Math.max(200,body.getBoundingClientRect().height);
+  const W=body.getBoundingClientRect().width, H=Math.max(280,body.getBoundingClientRect().height);
   const{ctx,w,h}=setupCanvas(canvas,W,H);
   const names=Object.keys(DATA.sheets);
   const activeKeys=CASE_KEYS.filter(k=>Object.values(DATA.sheets).some(sh=>(sh[k]||0)>0));
   const maxTotal=Math.max(...names.map(n=>caseTotal(DATA.sheets[n])));
+  // 应收集目标 = 该模块各文件 公共 + CPU + NPU 预收集之和（与概览「用例目标」同口径）
+  const files=window.FILES||[];
+  const tgtByModule={};
+  for(let i=0;i<files.length;i++){
+    const it=files[i];
+    tgtByModule[it[0]]=(tgtByModule[it[0]]||0)+(it[7]||0)+(it[8]||0)+(it[9]||0);
+  }
+  const maxTarget=Math.max(0,...names.map(n=>tgtByModule[n]||0));
+  const maxVal=Math.max(1,maxTotal,maxTarget);
   const padL=80,padR=20,padT=10,padB=24;
-  const plotW=w-padL-padR,barH=16,gap=6;
+  const plotW=w-padL-padR;
+  const tgtGap=2,gap=12;
+  const rowH=(h-padT-padB)/names.length;
+  const barH=Math.max(5,Math.min(10,(rowH-tgtGap-gap)/2));
   const barData=[];
   // skipped / blacklist 色块降低饱和度，弱化非看护状态在堆叠条中的视觉权重
   function barColor(k){
@@ -1009,8 +1021,8 @@ function renderModules(){
   }
 
   ctx.strokeStyle=getCSS("--gridline");ctx.lineWidth=1;
-  const gstep=maxTotal>40000?10000:1000;
-  for(let v=0;v<=maxTotal;v+=gstep){const x=padL+(v/maxTotal)*plotW;ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,h-padB);ctx.stroke()}
+  const gstep=maxVal>40000?10000:1000;
+  for(let v=0;v<=maxVal;v+=gstep){const x=padL+(v/maxVal)*plotW;ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,h-padB);ctx.stroke()}
 
   const hovered=moduleBarHover;
   function segOn(name,status){
@@ -1020,25 +1032,35 @@ function renderModules(){
   }
   names.forEach((name,i)=>{
     const sh=DATA.sheets[name];
-    const y=padT+i*(barH+gap);
+    const y=padT+i*rowH;
+    const barY=y+barH+tgtGap;
+    // 应收集目标（蓝色参考条，位于堆叠条上方）
+    const tv=tgtByModule[name]||0;
+    if(tv>0){
+      const tw=(tv/maxVal)*plotW;
+      ctx.globalAlpha=(hovered && hovered.module!==name)?0.3:1;
+      ctx.fillStyle=getCSS("--series-1");
+      roundRect(ctx,padL,y,tw,barH,0);ctx.fill();
+      ctx.globalAlpha=1;
+    }
     let xOffset=padL;
     activeKeys.forEach(k=>{
       const val=sh[k]||0;if(val===0)return;
-      const bw=(val/maxTotal)*plotW;
+      const bw=(val/maxVal)*plotW;
       const on=segOn(name,k);
       ctx.globalAlpha=(hovered && !on)?0.3:1;
       ctx.fillStyle=barColor(k);
-      roundRect(ctx,xOffset,y,bw,barH,0);ctx.fill();
+      roundRect(ctx,xOffset,barY,bw,barH,0);ctx.fill();
       ctx.globalAlpha=1;
-      if(xOffset>padL){ctx.fillStyle=getCSS("--surface-card");ctx.fillRect(xOffset-1,y,2,barH)}
-      barData.push({x:xOffset,y,w:bw,h:barH,status:k,name,val});
+      if(xOffset>padL){ctx.fillStyle=getCSS("--surface-card");ctx.fillRect(xOffset-1,barY,2,barH)}
+      barData.push({x:xOffset,y:barY,w:bw,h:barH,status:k,name,val});
       xOffset+=bw;
     });
     const labelSel=hovered && hovered.module===name;
     ctx.fillStyle=labelSel?getCSS("--text-primary"):getCSS("--text-secondary");
     ctx.font=(labelSel?"600 11px":"11px")+" system-ui,-apple-system,sans-serif";
     ctx.textAlign="right";ctx.textBaseline="middle";
-    ctx.fillText(name,padL-8,y+barH/2);
+    ctx.fillText(name,padL-8,y+barH+tgtGap/2);
   });
 
   ctx.strokeStyle=getCSS("--baseline");ctx.lineWidth=1;
@@ -1046,17 +1068,19 @@ function renderModules(){
   ctx.fillStyle=getCSS("--text-muted");ctx.font="10px system-ui,-apple-system,sans-serif";
   ctx.textAlign="center";ctx.textBaseline="top";
   ctx.fillText("0",padL,h-padB+5);
-  for(let v=gstep;v<=maxTotal;v+=gstep){
-    ctx.fillText(v>=1000?(v/1000).toFixed(v>=10000?0:1)+"k":v,padL+(v/maxTotal)*plotW,h-padB+5);
+  for(let v=gstep;v<=maxVal;v+=gstep){
+    ctx.fillText(v>=1000?(v/1000).toFixed(v>=10000?0:1)+"k":v,padL+(v/maxVal)*plotW,h-padB+5);
   }
 
-  document.getElementById("legend-modules").innerHTML=activeKeys.map(k=>
-    `<div class="chart-legend-item"><span class="chart-legend-dot" style="background:${barColor(k)}"></span>${STATUS[k].label}</div>`
-  ).join("");
+  document.getElementById("legend-modules").innerHTML=
+    '<div class="chart-legend-item"><span class="chart-legend-dot" style="background:'+getCSS("--series-1")+'"></span>收集目标（应收集用例）</div>'+
+    activeKeys.map(k=>
+      `<div class="chart-legend-item"><span class="chart-legend-dot" style="background:${barColor(k)}"></span>${STATUS[k].label}</div>`
+    ).join("");
 
   const tooltip=document.getElementById("tooltip-modules");
   function rowAt(my){
-    for(let i=0;i<names.length;i++){ const y=padT+i*(barH+gap); if(my>=y&&my<=y+barH) return names[i]; }
+    for(let i=0;i<names.length;i++){ const y=padT+i*rowH; if(my>=y&&my<=y+rowH-gap) return names[i]; }
     return null;
   }
   canvas.onmousemove=function(e){
