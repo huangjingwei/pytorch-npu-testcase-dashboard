@@ -221,7 +221,9 @@ regeneration leaves them unchanged:
     module row also draws a thin blue **收集目标** bar above the stacked bar — the
     module's should-collect total (`公共 + CPU + NPU` 预收集, same口径 as the overview
     `用例目标`) — as a non-clickable reference on the same axis; the axis max is
-    `max(已收集最大值, 目标最大值)`. Both bars are equal height.
+    `max(已收集最大值, 目标最大值)`. Both bars are equal height. Hovering the 收集目标
+    bar shows a tooltip with its case count (`模块 · 收集目标 / N 用例`) but it stays
+    non-clickable (cursor stays default, no drill-down).
   - module-summary table cell → the module name / 收集用例 cells filter by module
     only; a Passed/Failed/Skipped/Blacklist/Timeout/Error count filters by
     module + result;

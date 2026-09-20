@@ -1014,6 +1014,7 @@ function renderModules(){
   const rowH=(h-padT-padB)/names.length;
   const barH=Math.max(5,Math.min(10,(rowH-tgtGap-gap)/2));
   const barData=[];
+  const tgtData=[];
   // skipped / blacklist 色块降低饱和度，弱化非看护状态在堆叠条中的视觉权重
   function barColor(k){
     const c=getCSS("--status-"+k);
@@ -1042,6 +1043,7 @@ function renderModules(){
       ctx.fillStyle=getCSS("--series-1");
       roundRect(ctx,padL,y,tw,barH,0);ctx.fill();
       ctx.globalAlpha=1;
+      tgtData.push({x:padL,y,w:tw,h:barH,name,val:tv});
     }
     let xOffset=padL;
     activeKeys.forEach(k=>{
@@ -1087,8 +1089,10 @@ function renderModules(){
     const br=canvas.getBoundingClientRect();
     const mx=e.clientX-br.left,my=e.clientY-br.top;
     const hit=barData.find(b=>mx>=b.x&&mx<=b.x+b.w&&my>=b.y&&my<=b.y+b.h);
+    const tgtHit=hit?null:tgtData.find(b=>mx>=b.x&&mx<=b.x+b.w&&my>=b.y&&my<=b.y+b.h);
     let next=null;
     if(hit) next={module:hit.name,status:hit.status};
+    else if(tgtHit) next={module:tgtHit.name,status:null};
     else{ const row=rowAt(my); if(row && caseTotal(DATA.sheets[row])>0) next={module:row,status:null}; }
     const key=next?next.module+"|"+(next.status||""):null;
     const prev=moduleBarHover?moduleBarHover.module+"|"+(moduleBarHover.status||""):null;
@@ -1097,6 +1101,12 @@ function renderModules(){
       canvas.style.cursor="pointer";
       const t=caseTotal(DATA.sheets[hit.name]);
       tooltip.innerHTML=`<strong>${hit.name} · ${STATUS[hit.status].label}</strong><br>${fmt(hit.val)} 用例 (${pct(hit.val,t).toFixed(1)}%)`;
+      tooltip.classList.add("visible");positionTooltip(tooltip,card,e);
+      return;
+    }
+    if(tgtHit){
+      canvas.style.cursor="default";
+      tooltip.innerHTML=`<strong>${tgtHit.name} · 收集目标</strong><br>${fmt(tgtHit.val)} 用例`;
       tooltip.classList.add("visible");positionTooltip(tooltip,card,e);
       return;
     }
@@ -1117,6 +1127,7 @@ function renderModules(){
     const mx=e.clientX-br.left,my=e.clientY-br.top;
     const hit=barData.find(b=>mx>=b.x&&mx<=b.x+b.w&&my>=b.y&&my<=b.y+b.h);
     if(hit){ openCaseDetails(hit.status,hit.name); return; }
+    if(tgtData.find(b=>mx>=b.x&&mx<=b.x+b.w&&my>=b.y&&my<=b.y+b.h)) return; // 目标柱不可点击
     const row=rowAt(my);
     if(row && caseTotal(DATA.sheets[row])>0) openCaseDetails("all",row);
   };
