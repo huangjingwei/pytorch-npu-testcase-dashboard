@@ -138,6 +138,15 @@ body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--
 .progress-card .progress-pct{margin-left:auto;font-size:1.25rem;font-weight:600;color:var(--gen-yes);font-variant-numeric:tabular-nums;letter-spacing:-0.01em}
 .progress-card .progress-track{height:10px;border-radius:5px;background:var(--gen-no);overflow:hidden;margin-top:10px}
 .progress-card .progress-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,var(--gen-yes),var(--status-passed))}
+.progress-card .progress-body{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.progress-card .progress-left{flex:1;min-width:220px}
+.progress-card .progress-compose{flex:none}
+.progress-card .compose-row{display:flex;align-items:center;gap:14px}
+.progress-card .compose-canvas{flex:none;display:block}
+.progress-card .compose-legend{display:flex;flex-direction:column;gap:4px;min-width:0}
+.progress-card .compose-item{display:flex;align-items:center;gap:6px;font-size:0.6875rem;color:var(--text-secondary);font-variant-numeric:tabular-nums}
+.progress-card .compose-dot{width:8px;height:8px;border-radius:50%;flex:none}
+.progress-card .compose-val{font-weight:600;color:var(--text-primary)}
 
 /* Section header */
 .section-label{display:flex;align-items:baseline;gap:8px;margin:18px 0 12px}
@@ -275,7 +284,7 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
 /* 已泛化用例数 = the generalized case count (num/实际运行数量), shown in the primary
    text colour (black in light theme); 公共/CPU/NPU 预收集 are the pre-collected counts. */
 .file-count{flex:0 0 76px;text-align:center;font-size:0.6875rem;font-weight:600;color:var(--text-primary);font-variant-numeric:tabular-nums;white-space:nowrap}
-.file-pub,.file-cpu,.file-npu{flex:0 0 76px;text-align:center;font-size:0.6875rem;color:var(--text-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.file-pub,.file-cpu,.file-npu{flex:0 0 76px;text-align:center;font-size:0.6875rem;color:var(--text-muted);font-variant-numeric:tabular-nums;white-space:nowrap;cursor:default}
 /* 已泛化用例数 == 公共收集 + CPU预收集 + NPU预收集 (num>0): the file's executed cases
    exactly match the sum of the three pre-collection counts, so the 已泛化用例数 turns
    green (公共/CPU/NPU stay muted). */
@@ -627,6 +636,14 @@ function caseTotal(sh){ let t=0; for(const k of CASE_KEYS)t+=(sh[k]||0); return 
 function getCSS(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 function fmt(n){ return n.toLocaleString("en-US"); }
 function pct(p,t){ return t===0?0:(p/t*100); }
+function desaturate(hex,f){
+  hex=(hex||"").replace("#","");
+  if(hex.length===3) hex=hex.split("").map(c=>c+c).join("");
+  const r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);
+  const luma=0.299*r+0.587*g+0.114*b;
+  const ch=v=>Math.round(v+(luma-v)*f).toString(16).padStart(2,"0");
+  return "#"+ch(r)+ch(g)+ch(b);
+}
 
 // ================================================================
 // THEME
@@ -1009,6 +1026,11 @@ function renderModules(){
   const padL=80,padR=20,padT=10,padB=24;
   const plotW=w-padL-padR,barH=16,gap=6;
   const barData=[];
+  // skipped / blacklist 色块降低饱和度，弱化非看护状态在堆叠条中的视觉权重
+  function barColor(k){
+    const c=getCSS("--status-"+k);
+    return (k==="skipped"||k==="blacklist_unsupported")?desaturate(c,0.6):c;
+  }
 
   ctx.strokeStyle=getCSS("--gridline");ctx.lineWidth=1;
   const gstep=maxTotal>40000?10000:1000;
@@ -1029,7 +1051,7 @@ function renderModules(){
       const bw=(val/maxTotal)*plotW;
       const on=segOn(name,k);
       ctx.globalAlpha=(hovered && !on)?0.3:1;
-      ctx.fillStyle=getCSS("--status-"+k);
+      ctx.fillStyle=barColor(k);
       roundRect(ctx,xOffset,y,bw,barH,0);ctx.fill();
       ctx.globalAlpha=1;
       if(xOffset>padL){ctx.fillStyle=getCSS("--surface-card");ctx.fillRect(xOffset-1,y,2,barH)}
@@ -1053,7 +1075,7 @@ function renderModules(){
   }
 
   document.getElementById("legend-modules").innerHTML=activeKeys.map(k=>
-    `<div class="chart-legend-item"><span class="chart-legend-dot" style="background:var(--status-${k})"></span>${STATUS[k].label}</div>`
+    `<div class="chart-legend-item"><span class="chart-legend-dot" style="background:${barColor(k)}"></span>${STATUS[k].label}</div>`
   ).join("");
 
   const tooltip=document.getElementById("tooltip-modules");
@@ -1186,21 +1208,72 @@ function renderCollectProgress(){
   var el=document.getElementById("collect-progress");
   if(!el) return;
   var files=window.FILES||[];
-  var collected=DATA.blacklist_total||0, target=0;   // 已收集 = 实际运行 + blacklist
+  var collected=DATA.blacklist_total||0, pubTotal=0, cpuTotal=0, npuTotal=0;   // 已收集 = 实际运行 + blacklist
   for(var i=0;i<files.length;i++){
     var it=files[i];
-    collected += it[3]||0;                        // num (实际运行数量)
-    target += (it[9]||0)+(it[7]||0)+(it[8]||0);   // 公共 + CPU + NPU (目标)
+    collected += it[3]||0;     // num (实际运行数量)
+    pubTotal  += it[9]||0;     // 公共收集
+    cpuTotal  += it[7]||0;     // CPU预收集
+    npuTotal  += it[8]||0;     // NPU预收集 (PrivateUse1)
   }
+  var target = pubTotal + cpuTotal + npuTotal;
   var pct = target>0 ? collected/target*100 : 0;
   var pctTxt = pct.toFixed(1)+"%";
+  var compose=[
+    {label:"公共用例", value:pubTotal, color:getCSS("--series-1")},
+    {label:"CPU泛化用例", value:cpuTotal, color:getCSS("--series-2")},
+    {label:"PrivateUse1泛化用例", value:npuTotal, color:getCSS("--series-3")}
+  ];
+  var legend="";
+  for(var j=0;j<compose.length;j++){
+    var c=compose[j];
+    legend+='<span class="compose-item"><span class="compose-dot" style="background:'+c.color+'"></span><span>'+c.label+'</span><span class="compose-val">'+fmt(c.value)+'</span></span>';
+  }
   el.innerHTML =
-    '<div class="progress-head">'+
-      '<span class="progress-title">用例收集进度</span>'+
-      '<span class="progress-pct">'+pctTxt+'</span>'+
-    '</div>'+
-    '<div class="progress-nums">已收集 '+fmt(collected)+' / 目标 '+fmt(target)+' 用例</div>'+
-    '<div class="progress-track"><div class="progress-fill" style="width:'+pctTxt+'"></div></div>';
+    '<div class="progress-body">'+
+      '<div class="progress-compose">'+
+        '<div class="compose-row">'+
+          '<canvas class="compose-canvas"></canvas>'+
+          '<div class="compose-legend">'+legend+'</div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="progress-left">'+
+        '<div class="progress-head">'+
+          '<span class="progress-title">用例收集进度</span>'+
+          '<span class="progress-pct">'+pctTxt+'</span>'+
+        '</div>'+
+        '<div class="progress-nums">已收集 '+fmt(collected)+' / 目标 '+fmt(target)+' 用例</div>'+
+        '<div class="progress-track"><div class="progress-fill" style="width:'+pctTxt+'"></div></div>'+
+      '</div>'+
+    '</div>';
+
+  // 目标构成环形图（公共 / CPU / PrivateUse1 占比）
+  var cv=el.querySelector(".compose-canvas");
+  if(cv){
+    var size=96;
+    var d=setupCanvas(cv,size,size);
+    var cctx=d.ctx, cx=size/2, cy=size/2, rO=size/2-3, rI=rO*0.60;
+    var start=-Math.PI/2;
+    for(var k=0;k<compose.length;k++){
+      var cc=compose[k];
+      var ang=target>0?(cc.value/target)*Math.PI*2:0;
+      if(ang<=0) continue;
+      cctx.beginPath();
+      cctx.arc(cx,cy,rO,start,start+ang);
+      cctx.arc(cx,cy,rI,start+ang,start,true);
+      cctx.closePath();
+      cctx.fillStyle=cc.color;
+      cctx.fill();
+      start+=ang;
+    }
+    cctx.fillStyle=getCSS("--text-primary");
+    cctx.font="600 12px system-ui,-apple-system,sans-serif";
+    cctx.textAlign="center";cctx.textBaseline="middle";
+    cctx.fillText(fmt(target),cx,cy-4);
+    cctx.fillStyle=getCSS("--text-muted");
+    cctx.font="9px system-ui,-apple-system,sans-serif";
+    cctx.fillText("目标",cx,cy+9);
+  }
 }
 function renderAll(){
   var charts=["renderSummary","renderCollectProgress","renderFileDonut","renderFileModules","renderCasePie","renderModules","renderTable","renderSectionSubs"];
@@ -1633,7 +1706,8 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
   }
   fileListEl.addEventListener("click",function(e){
     const link=e.target.closest(".tree-row.file-link");
-    if(link){ openCaseFile(link.dataset.module, link.dataset.file); return; }
+    // 公共/CPU/NPU 预收集只是展示数量，不跳转用例详情
+    if(link && !e.target.closest(".file-pub,.file-cpu,.file-npu")){ openCaseFile(link.dataset.module, link.dataset.file); return; }
     const rowEl=e.target.closest(".tree-row");
     if(!rowEl||!rowEl._kids) return;
     const kids=rowEl._kids;

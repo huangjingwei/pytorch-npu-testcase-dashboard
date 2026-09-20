@@ -214,7 +214,9 @@ regeneration leaves them unchanged:
     clickable to filter); the 超时/错误 slice maps to the combined `timeout_error`
     status.
   - stacked-bar status segment → filter by module + result; a module row's empty
-    area → filter by module only.
+    area → filter by module only. In this chart the `skipped` and
+    `blacklist_unsupported` segments are drawn desaturated (muted) to downplay the
+    non-看护 statuses (via a `desaturate()` helper, legend dots matched).
   - module-summary table cell → the module name / 收集用例 cells filter by module
     only; a Passed/Failed/Skipped/Blacklist/Timeout/Error count filters by
     module + result;
@@ -244,8 +246,10 @@ regeneration leaves them unchanged:
   - 文件泛化率 donut slice / legend item → filter by gen status (已泛化 / 未泛化 / 无需泛化).
   - 各模块文件泛化情况 bar segment → filter by module + gen status; a module row's
     grey (未泛化) area → filter by module only.
-  - Clicking a generalized file row → `window.openCaseFile(module, file)`, which
-    jumps to 用例详情 filtered to that file's cases.
+  - Clicking a generalized file row (its file label or 已泛化用例数) →
+    `window.openCaseFile(module, file)`, which jumps to 用例详情 filtered to that
+    file's cases; the 公共收集 / CPU预收集 / NPU预收集 columns are muted display-only
+    and not clickable.
 - **Hover highlight (no border).** Hovering a donut slice pops it outward 5px while
   others dim to 30% opacity; hovering a stacked-bar segment dims the rest and bolds
   the module label. Applies to both the case charts and the file charts (文件泛化率
@@ -289,7 +293,10 @@ Check against the printed summary:
 Open `index.html` in a browser (works offline, no CDN; `cases.js` must be in the
 same folder as `index.html`). Confirm:
 
-- Overview top: 用例收集进度 bar — 已收集 (实际运行 + blacklist) / 目标 (公共 + CPU + NPU 收集)
+- Overview top: 用例收集进度 card — a target-composition donut on the left
+  (公共用例 / CPU泛化用例 / PrivateUse1泛化用例, sized by share of the 目标) and the 收集进度
+  bar on the right (已收集 = 实际运行 + blacklist, 目标 = 公共 + CPU + NPU 收集); both are
+  computed client-side from `window.FILES`.
 - Summary strip: 测试文件 / 已泛化文件 / 收集用例 / 看护用例数 (通过 + 失败 + 错误/超时) / 失败用例数
 - Case-level: 用例执行结果分布 donut + 各模块用例执行结果 stacked bar + 模块详情汇总 table
   (columns 模块 / 文件 / 已泛化 / 收集用例 / Passed / Failed / Skipped / Blacklist / Timeout / Error / 通过率,
