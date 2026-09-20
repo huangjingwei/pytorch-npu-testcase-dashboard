@@ -212,7 +212,8 @@ regeneration leaves them unchanged:
     `skipped` and `blacklist_unsupported` are excluded from the pie and its
     percentages and rendered as muted side legend entries below a divider (still
     clickable to filter); the 超时/错误 slice maps to the combined `timeout_error`
-    status.
+    status and is drawn in the `--status-error` (Error) colour, matching the
+    各模块用例执行结果 stacked bar.
   - stacked-bar status segment → filter by module + result; a module row's empty
     area → filter by module only. In this chart the `skipped` and
     `blacklist_unsupported` segments are drawn desaturated (muted) to downplay the
@@ -293,11 +294,14 @@ Check against the printed summary:
 Open `index.html` in a browser (works offline, no CDN; `cases.js` must be in the
 same folder as `index.html`). Confirm:
 
-- Overview top: 用例收集进度 card — a target-composition donut on the left
-  (公共用例 / CPU泛化用例 / PrivateUse1泛化用例, sized by share of the 目标) and the 收集进度
-  bar on the right (已收集 = 实际运行 + blacklist, 目标 = 公共 + CPU + NPU 收集); both are
-  computed client-side from `window.FILES`.
-- Summary strip: 测试文件 / 已泛化文件 / 收集用例 / 看护用例数 (通过 + 失败 + 错误/超时) / 失败用例数
+- Overview top: 用例收集进度 card — a target-composition donut on the left (titled
+  `用例目标`; 公共用例 / CPU泛化用例 / PrivateUse1泛化用例 sized by share of the 目标; same size as
+  the 用例执行结果分布 pie) and the 收集进度 bar on the right (已收集 = 实际运行 + blacklist, 目标 =
+  公共 + CPU + NPU 收集); both are computed client-side from `window.FILES`. The 4 summary tiles
+  live inside this card as a 2×2 grid (the former 失败用例数 tile was removed), in order:
+  收集测试文件 (`files_total`, sub 含无需泛化的文件 `files_snd`) / 收集测试用例 (`cases_total`,
+  sub 含 blacklist `blacklist_total`) / 已泛化文件 (`files_gen`, sub 泛化率) / 看护用例数
+  (通过 + 失败 + 错误/超时).
 - Case-level: 用例执行结果分布 donut + 各模块用例执行结果 stacked bar + 模块详情汇总 table
   (columns 模块 / 文件 / 已泛化 / 收集用例 / Passed / Failed / Skipped / Blacklist / Timeout / Error / 通过率,
   where 通过率 is 看护口径 — `passed / (passed + failed + timeout + error)`, excluding skipped/blacklist;
