@@ -175,6 +175,9 @@ cases.passed|failed|timeout|error = executed rows by 执行结果
 cases.skipped   = executed skipped rows (running-skip included)   (17589)
 cases.not_executed = executed not-run rows (未执行, non-watch)    (A5 only)
 cases.blacklist_unsupported = blacklisted (disabled) cases        (16394)
+blacklist_total = blacklisted rows total (all skip分类, incl. Running Skiped)
+                  = cases.blacklist_unsupported + running-skip rows; the UI 含 blacklist
+                  label shows cases.blacklist_unsupported, matching the 状态列/图例
 watch_total     = passed + failed + timeout + error               (看护口径, 不含 skipped/blacklist/not_executed)
 cases_pass_rate = cases.passed / watch_total × 100, 1 decimal     (看护通过率)
 
@@ -351,12 +354,12 @@ same folder as `index.html`). Confirm:
   `用例目标`; 公共用例 / CPU泛化用例 / PU1泛化用例 sized by share of the 目标, with the 无需泛化
   预收集 excluded and shown as a muted「无需泛化（不计入目标）」legend entry plus a smaller
   公共/CPU/PU1 sub-breakdown; same size as the 用例执行结果分布 pie) and the 收集进度 bar on the
-  right (已收集 = 实际运行 + blacklist, 目标 = 公共 + CPU + NPU 收集 − 无需泛化预收集; 已收集/目标
+  right (已收集 = 实际运行 + blacklist_total（含 Running Skiped，展示时并入 skipped）, 目标 = 公共 + CPU + NPU 收集 − 无需泛化预收集; 已收集/目标
   counts and the percentage sit on one line above the bar); both are computed client-side from
   `window.FILES`. The 4 summary tiles live inside this card as a 2×2 grid (the former 失败用例数
   tile was removed), in order:
   应收集的测试文件 (`files_total - files_snd`, sub 总量 `files_total` 含无需泛化文件 `files_snd`) /
-  收集测试用例 (`cases_total - snd.num`, sub 含 blacklist `blacklist_total`，其中剔除无需泛化的
+  收集测试用例 (`cases_total - snd.num`, sub 含 blacklist `blacklist_unsupported`，其中剔除无需泛化的
   用例 `snd.num`) / 已泛化文件 (`files_gen`, sub 泛化率) / 看护用例数 (通过 + 失败 + 错误/超时).
 - Case-level: 用例执行结果分布 donut + 各模块用例执行结果 stacked bar (each row topped by a blue
   收集目标 reference bar) + 模块详情汇总 table

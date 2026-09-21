@@ -1343,7 +1343,7 @@ document.querySelector("#detail-table tbody").addEventListener("click",e=>{
 // ================================================================
 function renderSectionSubs(){
   var c=document.getElementById("sec-case-sub");
-  if(c) c.textContent=fmt(DATA.cases_total)+" 用例 · 含 blacklist "+fmt(DATA.blacklist_total);
+  if(c) c.textContent=fmt(DATA.cases_total)+" 用例 · 含 blacklist "+fmt(DATA.cases.blacklist_unsupported);
   var f=document.getElementById("sec-file-sub");
   if(f) f.textContent=fmt(DATA.files_total)+" 文件 · "+fmt(DATA.files_gen)+" 已泛化（"+DATA.files_gen_rate.toFixed(1)+"%）";
   var sp=document.getElementById("sub-case-pie");
@@ -1357,7 +1357,7 @@ function renderCollectProgress(){
   if(!el) return;
   var files=window.FILES||[];
   var snd=sndCaseTotals(files);   // 无需泛化：total=预收集（剔除目标）/ num=已收集（剔除已收集）
-  var collected=DATA.blacklist_total||0, pubTotal=0, cpuTotal=0, npuTotal=0;   // 已收集 = 实际运行 + blacklist
+  var collected=DATA.blacklist_total||0, pubTotal=0, cpuTotal=0, npuTotal=0;   // 已收集 = 实际运行 + blacklist（blacklist_total 含 Running Skiped，展示时并入 skipped）
   for(var i=0;i<files.length;i++){
     var it=files[i];
     collected += it[3]||0;     // num (实际运行数量)
@@ -1396,7 +1396,7 @@ function renderCollectProgress(){
   // 汇总宫格（与概览同步，失败用例数已移除）
   var tiles=[
     {label:"应收集的测试文件", value:fmt(DATA.files_total-DATA.files_snd), sub:"总量 "+fmt(DATA.files_total)+"（含无需泛化文件"+fmt(DATA.files_snd)+"）", accent:"var(--series-7)", color:""},
-    {label:"收集测试用例", value:fmt(DATA.cases_total - snd.num), sub:"含 blacklist "+fmt(DATA.blacklist_total)+"，其中剔除无需泛化的用例 "+fmt(snd.num), accent:"var(--series-7)", color:""},
+    {label:"收集测试用例", value:fmt(DATA.cases_total - snd.num), sub:"含 blacklist "+fmt(DATA.cases.blacklist_unsupported)+"，其中剔除无需泛化的用例 "+fmt(snd.num), accent:"var(--series-7)", color:""},
     {label:"已泛化文件", value:fmt(DATA.files_gen), sub:"泛化率 "+DATA.files_gen_rate.toFixed(1)+"%", accent:"var(--gen-yes)", color:"var(--gen-yes)"},
     {label:"看护用例数", value:fmt(DATA.cases.passed+DATA.cases.failed+DATA.cases.error+DATA.cases.timeout), sub:"通过 "+fmt(DATA.cases.passed)+" · 失败 "+fmt(DATA.cases.failed)+" · 错误/超时 "+fmt(DATA.cases.error+DATA.cases.timeout), accent:"var(--series-1)", color:"var(--series-1)"}
   ];
