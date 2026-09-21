@@ -37,8 +37,10 @@ except ImportError:
 # file-level (未泛化) record rather than a concrete test case.
 UNMATCHED_NODEID = "(未匹配)"
 
-# Execution-status keys the dashboard knows about, in display order.
-STATUS_KEYS = ["passed", "failed", "skipped", "timeout", "error"]
+# Execution-status keys the dashboard knows about, in display order. ``not_executed``
+# (未执行 — collected but not run on this hardware) is a non-watch status like
+# ``skipped``: it is excluded from the 看护通过率 denominator.
+STATUS_KEYS = ["passed", "failed", "skipped", "not_executed", "timeout", "error"]
 
 # Header names (verbatim) the script looks for, with 0-based positional fallback
 # when the header row does not match (robust to column reordering).
@@ -58,6 +60,20 @@ COLUMN_SPEC = {
 
 DATA_BEGIN = "/*__DATA_BEGIN__*/"
 DATA_END = "/*__DATA_END__*/"
+
+
+def data_markers(dataset):
+    """Injection markers for a dataset key. ``A3`` uses the legacy unsuffixed
+    markers (back-compat with the single-dataset template); any other key gets a
+    ``__DATA_<KEY>_...`` suffix so multiple datasets can live in one HTML file."""
+    suffix = "" if dataset == "A3" else "_" + dataset
+    return f"/*__DATA{suffix}_BEGIN__*/", f"/*__DATA{suffix}_END__*/"
+
+
+def cases_filename(dataset):
+    """Case-detail JS filename for a dataset key (``cases.js`` for A3, else
+    ``cases_<key>.js``)."""
+    return "cases.js" if dataset == "A3" else f"cases_{dataset.lower()}.js"
 
 
 def _find_column(headers, spec):
@@ -403,6 +419,7 @@ def build_two_tier(wb, blacklist_path=None):
             "passed": st["passed"],
             "failed": st["failed"],
             "skipped": st["skipped"],
+            "not_executed": st["not_executed"],
             "timeout": st["timeout"],
             "error": st["error"],
             "blacklist_unsupported": st["blacklist_unsupported"],
@@ -433,6 +450,7 @@ def build_two_tier(wb, blacklist_path=None):
             "passed": case_totals["passed"],
             "failed": case_totals["failed"],
             "skipped": case_totals["skipped"],
+            "not_executed": case_totals["not_executed"],
             "timeout": case_totals["timeout"],
             "error": case_totals["error"],
             "blacklist_unsupported": case_totals["blacklist_unsupported"],
@@ -517,6 +535,7 @@ def build_legacy(wb):
             "passed": status["passed"],
             "failed": status["failed"],
             "skipped": status["skipped"],
+            "not_executed": status["not_executed"],
             "blacklist_unsupported": 0,
             "timeout": status["timeout"],
             "error": status["error"],
@@ -545,6 +564,7 @@ def build_legacy(wb):
             "passed": case_totals["passed"],
             "failed": case_totals["failed"],
             "skipped": case_totals["skipped"],
+            "not_executed": case_totals["not_executed"],
             "blacklist_unsupported": 0,
             "timeout": case_totals["timeout"],
             "error": case_totals["error"],
@@ -581,7 +601,12 @@ def main(argv=None):
     p.add_argument("--status", "-s", default=None,
                    help="Tracking workbook (default: status_tracking.xlsx next to --input, if present); attaches Status/Priority/Assignee to each file")
     p.add_argument("--json-out", help="Optional: also write DATA to a .json file")
+    p.add_argument("--dataset", "-d", default="A3",
+                   help="Dataset key (A3/A5) — picks the injection markers and cases filename (default: A3)")
+    p.add_argument("--date", default=None,
+                   help="Report date string stored in DATA.date, shown in the header/footer (e.g. 2026-09-19)")
     args = p.parse_args(argv)
+    args.dataset = args.dataset.upper()
 
     blacklist = args.blacklist
     if blacklist is None:
@@ -623,14 +648,20 @@ def main(argv=None):
         sh["snd_files"] = snd_by_module.get(name, 0)
         sh["na_files"] = sh["files"] - sh["gen_files"] - sh["snd_files"]
 
+    if args.date:
+        data["date"] = args.date
+    data["dataset"] = args.dataset
+
+    begin, end = data_markers(args.dataset)
     with open(args.output, "r", encoding="utf-8") as f:
         html = f.read()
-    html = inject(html, DATA_BEGIN, DATA_END,
+    html = inject(html, begin, end,
                   "\n" + json.dumps(data, ensure_ascii=False, indent=2) + "\n  ")
     with open(args.output, "w", encoding="utf-8") as f:
         f.write(html)
 
-    cases_path = args.cases_out or os.path.join(os.path.dirname(args.output) or ".", "cases.js")
+    cases_path = args.cases_out or os.path.join(
+        os.path.dirname(args.output) or ".", cases_filename(args.dataset))
     with open(cases_path, "w", encoding="utf-8") as f:
         f.write("window.CASES=" +
                 json.dumps(detail, ensure_ascii=False, separators=(",", ":")) + ";\n")

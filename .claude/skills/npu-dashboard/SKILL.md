@@ -27,6 +27,35 @@ python3 .claude/skills/npu-dashboard/scripts/generate_dashboard.py \
     --input new_sample.xlsx --output index.html
 ```
 
+## A3 / A5 switch (two datasets, one dashboard)
+
+`index.html` carries two aggregate `DATA` objects inline — `DATA_A3` and
+`DATA_A5` — plus the case detail files `cases.js` (A3) and `cases_a5.js` (A5),
+each setting the same `window.CASES` / `window.FILES` globals. A header
+segmented control (A3 报告 / A5 报告) swaps reports: it stores the choice in
+`localStorage` + a `?dataset=` URL param and reloads the page. On load a small
+bootstrap script reads that choice and `document.write`s the matching
+`<script src>` (cases.js vs cases_a5.js), so only the active dataset's 25–50 MB
+detail file is parsed. The rendering code is otherwise unchanged — it always
+reads the fixed names `DATA` / `window.CASES` / `window.FILES`.
+
+Regenerate **both** datasets (A3 and A5) whenever a new sample lands:
+
+```bash
+python3 .claude/skills/npu-dashboard/scripts/generate_dashboard.py \
+    --input <a3>/all_testcases.xlsx --output index.html --dataset A3 --date 2026-09-19
+python3 .claude/skills/npu-dashboard/scripts/generate_dashboard.py \
+    --input <a5>/all_testcases.xlsx --output index.html --dataset A5 --date 2026-09-20
+```
+
+Run A3 *and* A5 — running one leaves the other's `DATA`/cases file as-is.
+`DATA.date`/`DATA.dataset` feed the header subtitle and footer.
+
+> As of 2026-09 the A5 switch is kept but blanked: `DATA_A5` is `null` and
+> `cases_a5.js` holds only `window.CASES={};window.FILES=[];`. The shell's
+> `DATA_EMPTY` guard renders a「暂无数据」empty state whenever the active dataset has
+> no data, so A5 shows placeholder until a fresh A5 sample is regenerated.
+
 ## Parameters
 
 | Parameter | Default | Description |
@@ -37,6 +66,8 @@ python3 .claude/skills/npu-dashboard/scripts/generate_dashboard.py \
 | `--blacklist`, `-b` | `blacklist_testcases.xlsx` next to `--input` (if present) | Blacklist workbook; folds blacklisted cases into the case totals |
 | `--status`, `-s` | `status_tracking.xlsx` or `summary_report.xlsx` next to `--input` (if present) | Tracking workbook (one sheet per module); attaches a status tag (`Done`/`Todo`/`In Progress`/`Backlog`, read from `Status` or `社区status`), a priority tag (`High`/`Medium`/`Low`/`Should Not Do`, from `Priority`), and the assignee (from `Assignee` or `author`) to each file in the 测试文件 tab |
 | `--json-out` | _(none)_ | Optional: also dump the computed `DATA` to a `.json` file |
+| `--dataset`, `-d` | `A3` | Dataset key (`A3`/`A5`). Picks the injection markers (`__DATA_BEGIN__` for A3, `__DATA_A5_BEGIN__` for A5) and the cases filename (`cases.js` for A3, `cases_a5.js` for A5), so two datasets can coexist in one `index.html` |
+| `--date` | _(none)_ | Report date string stored in `DATA.date` and shown in the header/footer (e.g. `2026-09-19`) |
 
 Dependencies: `openpyxl` only (`pip3 install openpyxl`).
 
@@ -77,7 +108,7 @@ column is the finer sub-division in both layouts.
   | `Classification` | `Classification` | Fine sub-division; folded onto its sheet for the module key |
   | `File` | `File` | Test file path |
   | `nodeid` | `nodeid` | Concrete test-case id |
-  | `result` | `执行结果` | `passed` / `failed` / `skipped` / `timeout` / `error` |
+  | `result` | `执行结果` | `passed` / `failed` / `skipped` / `not_executed` / `timeout` / `error` |
 
   Columns `Specialization`, `报错日志`, `skip原生日志首行`, `黑名单跳过`,
   `不支持`, `不支持原因` are present but not consumed. The per-module sheets
@@ -142,8 +173,9 @@ files_gen_rate  = files_gen / (files_gen + files_na) × 100, 1 dec (12.3%)
 cases_total     = rows in all_testcases + blacklisted cases       (179066)
 cases.passed|failed|timeout|error = executed rows by 执行结果
 cases.skipped   = executed skipped rows (running-skip included)   (17589)
+cases.not_executed = executed not-run rows (未执行, non-watch)    (A5 only)
 cases.blacklist_unsupported = blacklisted (disabled) cases        (16394)
-watch_total     = passed + failed + timeout + error               (看护口径, 不含 skipped/blacklist)
+watch_total     = passed + failed + timeout + error               (看护口径, 不含 skipped/blacklist/not_executed)
 cases_pass_rate = cases.passed / watch_total × 100, 1 decimal     (看护通过率)
 
 per module (grouped by sheet name):
@@ -171,13 +203,16 @@ per module (grouped by sheet name):
 The output is **two files** that sit side by side and work fully offline:
 
 - **`index.html`** — the dashboard shell: all CSS/HTML/JS plus the small
-  aggregate `DATA` object, injected inline between one pair of markers:
+  aggregate `DATA` objects, injected inline between one marker pair per dataset
+  (`DATA_A3` and `DATA_A5`; see the A3/A5 switch section above):
 
   ```js
-  const DATA = /*__DATA_BEGIN__*/ { ...aggregate... } /*__DATA_END__*/;
+  const DATA_A3 = /*__DATA_BEGIN__*/     { ...aggregate... } /*__DATA_END__*/;
+  const DATA_A5 = /*__DATA_A5_BEGIN__*/  { ...aggregate... } /*__DATA_A5_END__*/;
+  const DATA   = (window.__DASH_DATASET__ === "A5") ? DATA_A5 : DATA_A3;
   ```
 
-- **`cases.js`** — the bulky per-case detail tree, written as a single
+- **`cases.js`** / **`cases_a5.js`** — the bulky per-case detail tree, written as a single
   `window.CASES = { ... }` assignment and loaded by the shell via
   `<script src="cases.js"></script>`. Its shape is
   `module -> file -> [[nodeid_suffix, result], ...]`; the nodeid's file prefix is
@@ -215,20 +250,32 @@ regeneration leaves them unchanged:
     status and is drawn in the `--status-error` (Error) colour, matching the
     各模块用例执行结果 stacked bar.
   - stacked-bar status segment → filter by module + result; a module row's empty
-    area → filter by module only. In this chart the `skipped` and
-    `blacklist_unsupported` segments are drawn desaturated (muted) to downplay the
-    non-看护 statuses (via a `desaturate()` helper, legend dots matched). Each
-    module row also draws a thin blue **收集目标** bar above the stacked bar — the
-    module's should-collect total (`公共 + CPU + NPU` 预收集, same口径 as the overview
-    `用例目标`) — as a non-clickable reference on the same axis; the axis max is
+    area → filter by module only. In this chart the `skipped`,
+    `blacklist_unsupported` and `not_executed` segments are drawn lightened (muted)
+    to downplay the non-看护 statuses (via a `lighten()` helper, legend dots
+    matched). Each module row also draws a thin blue **收集目标** bar above the
+    stacked bar — the module's should-collect total (`公共 + CPU + NPU` 预收集, same
+    口径 as the overview `用例目标`) — as a non-clickable reference on the same axis;
+    the 无需泛化 portion of that total is drawn in a lighter blue so the
+    should-collect / 无需泛化 split stays visible, and the axis max is
     `max(已收集最大值, 目标最大值)`. Both bars are equal height. Hovering the 收集目标
-    bar shows a tooltip with its case count (`模块 · 收集目标 / N 用例`) but it stays
-    non-clickable (cursor stays default, no drill-down).
+    bar shows a tooltip with its case count (`模块 · 收集目标 / N 用例`, plus the
+    无需泛化 count when non-zero) but it stays non-clickable (cursor stays default,
+    no drill-down).
   - module-summary table cell → the module name / 收集用例 cells filter by module
     only; a Passed/Failed/Skipped/Blacklist/Timeout/Error count filters by
     module + result;
     the 合计 row filters by the global (all-module) + result. Cells of zero-case
     modules are rendered plain (not clickable).
+- **无需泛化 (Should Not Do) handling.** 无需泛化 files — `gen==0 && Priority=="Should Not Do"`
+  (`files_snd`) — don't need generalization. Two distinct case metrics apply, both computed
+  client-side by `sndCaseTotals(files)`:
+  - **pre-collection** (`total`/`pub`/`cpu`/`npu` = `公共 + CPU + NPU` 预收集) — excluded from
+    the 收集目标 donut target and drawn as a muted「无需泛化（不计入目标）」legend entry with a
+    smaller 公共/CPU/PU1 sub-breakdown on one line; the module 收集目标 bars shade this portion
+    lighter blue.
+  - **collected** (`num` = `实际运行数量`, i.e. 收集出来的用例) — excluded from the 收集测试用例
+    tile; it is 0 because these files are never actually collected.
 - **Details filters.** The details toolbar has four filters — text search
   (module/file/nodeid), a module filter, a status filter (with a combined
   `timeout_error` option), and a skip-category filter (the distinct `skip分类`
@@ -301,13 +348,16 @@ Open `index.html` in a browser (works offline, no CDN; `cases.js` must be in the
 same folder as `index.html`). Confirm:
 
 - Overview top: 用例收集进度 card — a target-composition donut on the left (titled
-  `用例目标`; 公共用例 / CPU泛化用例 / PrivateUse1泛化用例 sized by share of the 目标; same size as
-  the 用例执行结果分布 pie) and the 收集进度 bar on the right (已收集 = 实际运行 + blacklist, 目标 =
-  公共 + CPU + NPU 收集); both are computed client-side from `window.FILES`. The 4 summary tiles
-  live inside this card as a 2×2 grid (the former 失败用例数 tile was removed), in order:
-  收集测试文件 (`files_total`, sub 含无需泛化的文件 `files_snd`) / 收集测试用例 (`cases_total`,
-  sub 含 blacklist `blacklist_total`) / 已泛化文件 (`files_gen`, sub 泛化率) / 看护用例数
-  (通过 + 失败 + 错误/超时).
+  `用例目标`; 公共用例 / CPU泛化用例 / PU1泛化用例 sized by share of the 目标, with the 无需泛化
+  预收集 excluded and shown as a muted「无需泛化（不计入目标）」legend entry plus a smaller
+  公共/CPU/PU1 sub-breakdown; same size as the 用例执行结果分布 pie) and the 收集进度 bar on the
+  right (已收集 = 实际运行 + blacklist, 目标 = 公共 + CPU + NPU 收集 − 无需泛化预收集; 已收集/目标
+  counts and the percentage sit on one line above the bar); both are computed client-side from
+  `window.FILES`. The 4 summary tiles live inside this card as a 2×2 grid (the former 失败用例数
+  tile was removed), in order:
+  应收集的测试文件 (`files_total - files_snd`, sub 总量 `files_total` 含无需泛化文件 `files_snd`) /
+  收集测试用例 (`cases_total - snd.num`, sub 含 blacklist `blacklist_total`，其中剔除无需泛化的
+  用例 `snd.num`) / 已泛化文件 (`files_gen`, sub 泛化率) / 看护用例数 (通过 + 失败 + 错误/超时).
 - Case-level: 用例执行结果分布 donut + 各模块用例执行结果 stacked bar (each row topped by a blue
   收集目标 reference bar) + 模块详情汇总 table
   (columns 模块 / 文件 / 已泛化 / 收集用例 / Passed / Failed / Skipped / Blacklist / Timeout / Error / 通过率,
@@ -329,8 +379,12 @@ same folder as `index.html`). Confirm:
 - **Do not load the workbook in `read_only` mode.** This workbook reports broken
   dimension metadata (`max_row=1`) in read-only mode, which silently truncates
   iteration to the header row. The script loads in normal mode on purpose.
-- **Unknown execution-status values** (anything outside the 5 known keys) are
-  folded into `error` with a `[warn]` line, so `gen_cases` always reconciles.
+- **Known execution-status keys** are `passed` / `failed` / `skipped` /
+  `not_executed` / `timeout` / `error` (plus the derived `blacklist_unsupported`).
+  `not_executed` (未执行 — a case collected but not run, e.g. on the A5 hardware)
+  is treated like `skipped`: excluded from the 看护通过率 denominator and drawn
+  muted. Anything outside the known keys is folded into `error` with a `[warn]`
+  line, so `gen_cases` always reconciles.
 - **`top_specs` / `top_unsupported` are legacy.** Their charts were removed from
   the dashboard, so the generator no longer emits them. If those charts are
   re-added, derive them from the `Specialization` (grouped case counts) and

@@ -25,6 +25,7 @@
   --status-timeout:  #eb6834;
   --status-error:    #4a3aa7;
   --status-blacklist_unsupported: #6b7280;
+  --status-not_executed: #5d7a99;
   --gen-yes:         #2a78d6;
   --gen-no:          #e1e0d9;
   --gen-snd:         #f0efe9;
@@ -59,6 +60,7 @@
     --status-timeout:  #d95926;
     --status-error:    #9085e9;
     --status-blacklist_unsupported: #9aa4b2;
+    --status-not_executed: #6c8bab;
     --gen-yes:         #3987e5;
     --gen-no:          #383835;
     --gen-snd:         #4b4b47;
@@ -91,6 +93,7 @@
   --status-timeout:  #d95926;
   --status-error:    #9085e9;
   --status-blacklist_unsupported: #9aa4b2;
+  --status-not_executed: #6c8bab;
   --gen-yes:         #3987e5;
   --gen-no:          #383835;
   --gen-snd:         #4b4b47;
@@ -122,6 +125,12 @@ body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--
 .theme-toggle button{border:none;background:transparent;padding:5px 10px;border-radius:13px;font-size:0.75rem;cursor:pointer;color:var(--text-secondary);font-family:inherit;transition:all 0.15s}
 .theme-toggle button.active{background:var(--text-primary);color:var(--surface-card)}
 
+/* Dataset (A3/A5) toggle */
+.header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ds-toggle{display:flex;align-items:center;gap:4px;background:var(--surface-card);border:1px solid var(--border);border-radius:16px;padding:3px}
+.ds-toggle button{border:none;background:transparent;padding:5px 12px;border-radius:13px;font-size:0.75rem;cursor:pointer;color:var(--text-secondary);font-family:inherit;transition:all 0.15s}
+.ds-toggle button.active{background:var(--gen-yes);color:#fff}
+
 /* Summary strip */
 .summary-strip{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .sum-tile{background:var(--surface-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;display:flex;flex-direction:column;gap:0;position:relative;overflow:hidden}
@@ -143,7 +152,17 @@ body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--
 .progress-card .compose-item{display:flex;align-items:center;gap:6px;font-size:0.6875rem;color:var(--text-secondary);font-variant-numeric:tabular-nums}
 .progress-card .compose-dot{width:8px;height:8px;border-radius:50%;flex:none}
 .progress-card .compose-val{font-weight:600;color:var(--text-primary)}
+.progress-card .compose-divider{height:1px;background:var(--gridline);margin:2px 0}
+.progress-card .compose-item.compose-muted{color:var(--text-muted)}
+.progress-card .compose-item.compose-muted .compose-val{color:var(--text-muted);font-weight:500}
+.progress-card .compose-item.compose-sub{padding-left:14px;font-size:0.5625rem;color:var(--text-muted)}
+.progress-card .compose-item.compose-sub .compose-dot{width:6px;height:6px}
+.progress-card .compose-item.compose-sub .compose-val{color:var(--text-muted);font-weight:500}
+.progress-card .compose-subrow{display:flex;align-items:center;gap:14px;padding-left:14px;flex-wrap:wrap}
+.progress-card .compose-subrow .compose-item.compose-sub{padding-left:0}
 .progress-card .progress-right{flex:1;min-width:320px;display:flex;flex-direction:column;gap:10px}
+.progress-card .progress-right .progress-head{margin-bottom:0}
+.progress-card .progress-metrics{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 .progress-card .progress-nums{font-size:0.6875rem;color:var(--text-secondary);font-variant-numeric:tabular-nums}
 .progress-card .progress-track{height:10px;border-radius:5px;background:var(--gen-no);overflow:hidden}
 .progress-card .progress-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,var(--gen-yes),var(--status-passed))}
@@ -253,6 +272,7 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
 .result-badge.r-timeout{color:var(--status-timeout)}
 .result-badge.r-error{color:var(--status-error)}
 .result-badge.r-blacklist_unsupported{color:var(--status-blacklist_unsupported)}
+.result-badge.r-not_executed{color:var(--status-not_executed)}
 .skip-chip{flex:0 1 auto;max-width:20%;font-size:0.625rem;font-weight:600;color:var(--text-secondary);background:rgba(128,128,128,0.14);padding:1px 8px;border-radius:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5;font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace}
 .skip-chip.running{color:var(--status-skipped);background:rgba(237,161,0,0.16)}
 .skip-chip.cann{color:var(--series-1);background:rgba(42,120,214,0.13)}
@@ -263,6 +283,14 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
 .load-more{display:block;width:100%;padding:8px;border:none;background:transparent;color:var(--gen-yes);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:center}
 .load-more:hover{background:rgba(128,128,128,0.05)}
 .tree-empty{padding:24px;text-align:center;color:var(--text-muted);font-size:0.8125rem}
+
+/* No-data state (e.g. A5 report with empty data) */
+.empty-state{display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:72px 24px;text-align:center}
+.empty-state .es-emoji{font-size:2.5rem;line-height:1}
+.empty-state .es-title{font-size:1.125rem;font-weight:600;color:var(--text-primary)}
+.empty-state .es-sub{font-size:0.8125rem;color:var(--text-muted)}
+body.no-data #view-overview > *:not(#empty-state){display:none!important}
+body.no-data #empty-state{display:flex}
 
 /* Test-files list — trailing columns are fixed-width so tags line up across rows */
 .gen-badge,.status-tag,.priority-tag{font-size:0.6875rem;font-weight:600;padding:1px 0;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;line-height:1.5}
@@ -307,11 +335,17 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
   <header class="header">
     <div class="header-left">
       <h1>TorchNPU 社区用例看板</h1>
-      <p>用例执行结果全景视图 · 更新于 2026-09-19</p>
+      <p id="header-sub">用例执行结果全景视图 · 更新于 —</p>
     </div>
-    <div class="theme-toggle" role="radiogroup" aria-label="主题切换">
-      <button id="btn-light" role="radio" aria-checked="true" class="active">☀ 浅色</button>
-      <button id="btn-dark" role="radio" aria-checked="false">☾ 深色</button>
+    <div class="header-right">
+      <div class="ds-toggle" role="radiogroup" aria-label="报告切换">
+        <button id="btn-a3" role="radio" aria-checked="true" class="active">A3 报告</button>
+        <button id="btn-a5" role="radio" aria-checked="false">A5 报告</button>
+      </div>
+      <div class="theme-toggle" role="radiogroup" aria-label="主题切换">
+        <button id="btn-light" role="radio" aria-checked="true" class="active">☀ 浅色</button>
+        <button id="btn-dark" role="radio" aria-checked="false">☾ 深色</button>
+      </div>
     </div>
   </header>
 
@@ -322,6 +356,13 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
   </nav>
 
   <div id="view-overview">
+
+  <!-- 暂无数据占位（当数据集为空时显示） -->
+  <div id="empty-state" class="empty-state">
+    <div class="es-emoji">📭</div>
+    <div class="es-title">该报告暂无数据</div>
+    <div class="es-sub">A5 报告数据尚未生成，请切换回 A3 报告查看。</div>
+  </div>
 
   <!-- 用例收集进度 + 汇总宫格 — generated by JS -->
   <div class="progress-card" id="collect-progress"></div>
@@ -371,6 +412,7 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
             <th data-sort="failed" class="num">Failed<span class="sort-arrow"></span></th>
             <th data-sort="skipped" class="num">Skipped<span class="sort-arrow"></span></th>
             <th data-sort="blacklist_unsupported" class="num">Blacklist<span class="sort-arrow"></span></th>
+            <th data-sort="not_executed" class="num">未执行<span class="sort-arrow"></span></th>
             <th data-sort="timeout" class="num">Timeout<span class="sort-arrow"></span></th>
             <th data-sort="error" class="num">Error<span class="sort-arrow"></span></th>
             <th data-sort="rate" class="num">通过率<span class="sort-arrow"></span></th>
@@ -425,6 +467,7 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
         <option value="failed">Failed</option>
         <option value="skipped">Skipped</option>
         <option value="blacklist_unsupported">Blacklist</option>
+        <option value="not_executed">未执行</option>
         <option value="timeout_error">Timeout/Error</option>
         <option value="timeout">Timeout</option>
         <option value="error">Error</option>
@@ -471,15 +514,29 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
     <div class="tree" id="file-list"></div>
   </div>
 
-  <div class="footer">TorchNPU 社区用例看板 · Generated 2026-09-19</div>
+  <div class="footer" id="footer-note">TorchNPU 社区用例看板 · Generated —</div>
 </div>
 
-<script src="cases.js"></script>
+<script>
+// Bootstrap: pick the active dataset (URL ?dataset= or localStorage, default A3)
+// and synchronously load the matching cases file before the app below runs.
+(function () {
+  var p = null;
+  try { p = new URLSearchParams(location.search).get("dataset"); } catch (e) { p = null; }
+  var stored = null;
+  try { stored = localStorage.getItem("npu-dash-dataset"); } catch (e) { stored = null; }
+  var ds = (p || stored || "A3").toUpperCase();
+  if (ds !== "A3" && ds !== "A5") ds = "A3";
+  window.__DASH_DATASET__ = ds;
+  var file = (ds === "A5") ? "cases_a5.js" : "cases.js";
+  document.write('<script src="' + file + '"><\/script>');
+})();
+</script>
 <script>
 // ================================================================
 // DATA
 // ================================================================
-const DATA = /*__DATA_BEGIN__*/
+const DATA_A3 = /*__DATA_BEGIN__*/
 {
   "files_total": 1219,
   "files_gen": 290,
@@ -490,6 +547,7 @@ const DATA = /*__DATA_BEGIN__*/
     "passed": 194548,
     "failed": 7877,
     "skipped": 35412,
+    "not_executed": 0,
     "timeout": 0,
     "error": 146,
     "blacklist_unsupported": 17968
@@ -514,6 +572,7 @@ const DATA = /*__DATA_BEGIN__*/
       "passed": 8515,
       "failed": 511,
       "skipped": 1835,
+      "not_executed": 0,
       "timeout": 0,
       "error": 0,
       "blacklist_unsupported": 924,
@@ -527,6 +586,7 @@ const DATA = /*__DATA_BEGIN__*/
       "passed": 267,
       "failed": 0,
       "skipped": 15,
+      "not_executed": 0,
       "timeout": 0,
       "error": 118,
       "blacklist_unsupported": 0,
@@ -540,6 +600,7 @@ const DATA = /*__DATA_BEGIN__*/
       "passed": 43767,
       "failed": 1850,
       "skipped": 16714,
+      "not_executed": 0,
       "timeout": 0,
       "error": 27,
       "blacklist_unsupported": 65,
@@ -553,6 +614,7 @@ const DATA = /*__DATA_BEGIN__*/
       "passed": 0,
       "failed": 0,
       "skipped": 0,
+      "not_executed": 0,
       "timeout": 0,
       "error": 0,
       "blacklist_unsupported": 0,
@@ -566,6 +628,7 @@ const DATA = /*__DATA_BEGIN__*/
       "passed": 2883,
       "failed": 81,
       "skipped": 89,
+      "not_executed": 0,
       "timeout": 0,
       "error": 0,
       "blacklist_unsupported": 0,
@@ -579,6 +642,7 @@ const DATA = /*__DATA_BEGIN__*/
       "passed": 162,
       "failed": 64,
       "skipped": 0,
+      "not_executed": 0,
       "timeout": 0,
       "error": 0,
       "blacklist_unsupported": 0,
@@ -592,6 +656,7 @@ const DATA = /*__DATA_BEGIN__*/
       "passed": 138587,
       "failed": 5351,
       "skipped": 16625,
+      "not_executed": 0,
       "timeout": 0,
       "error": 1,
       "blacklist_unsupported": 16975,
@@ -605,25 +670,50 @@ const DATA = /*__DATA_BEGIN__*/
       "passed": 367,
       "failed": 20,
       "skipped": 134,
+      "not_executed": 0,
       "timeout": 0,
       "error": 0,
       "blacklist_unsupported": 4,
       "snd_files": 35
     }
   },
-  "files_snd": 174
+  "files_snd": 174,
+  "date": "2026-09-19",
+  "dataset": "A3"
 }
   /*__DATA_END__*/;
+const DATA_A5 = /*__DATA_A5_BEGIN__*/ null /*__DATA_A5_END__*/;
+const DATA = (window.__DASH_DATASET__ === "A5") ? DATA_A5 : DATA_A3;
+const DATA_EMPTY = !DATA || !DATA.sheets || Object.keys(DATA.sheets).length === 0;
 
 
 const STATUS = {
   passed:{label:"Passed",color:"#1baf7a"}, failed:{label:"Failed",color:"#e34948"},
-  skipped:{label:"Skipped",color:"#eda100"}, timeout:{label:"Timeout",color:"#eb6834"},
+  skipped:{label:"Skipped",color:"#eda100"}, not_executed:{label:"未执行",color:"#5d7a99"},
+  timeout:{label:"Timeout",color:"#eb6834"},
   error:{label:"Error",color:"#4a3aa7"}, blacklist_unsupported:{label:"Blacklist",color:"#6b7280"}
 };
-const CASE_KEYS = ["passed","failed","skipped","blacklist_unsupported","timeout","error"];
+const CASE_KEYS = ["passed","failed","skipped","blacklist_unsupported","not_executed","timeout","error"];
 
 function caseTotal(sh){ let t=0; for(const k of CASE_KEYS)t+=(sh[k]||0); return t; }
+
+// 无需泛化（未泛化且优先级 Should Not Do）文件不参与「收集目标」：其
+// 公共/CPU/NPU 预收集用例数从目标中剔除，并按模块汇总（与生成器 files_snd 同口径）。
+// total/pub/cpu/npu = 预收集用例（供「收集目标」剔除）；
+// num = 已收集用例（实际运行数量，供「已收集用例」剔除，与收集出来的用例同口径）。
+function sndCaseTotals(files){
+  var out={total:0, pub:0, cpu:0, npu:0, num:0, byModule:{}};
+  for(var i=0;i<files.length;i++){
+    var it=files[i];
+    if(it[2]===0 && it[5]==="Should Not Do"){
+      var pub=it[9]||0, cpu=it[7]||0, npu=it[8]||0, c=pub+cpu+npu;
+      out.total+=c; out.pub+=pub; out.cpu+=cpu; out.npu+=npu;
+      out.num += it[3]||0;   // 实际运行数量（收集出来的用例）
+      out.byModule[it[0]]=(out.byModule[it[0]]||0)+c;
+    }
+  }
+  return out;
+}
 
 // ================================================================
 // HELPERS
@@ -631,12 +721,11 @@ function caseTotal(sh){ let t=0; for(const k of CASE_KEYS)t+=(sh[k]||0); return 
 function getCSS(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 function fmt(n){ return n.toLocaleString("en-US"); }
 function pct(p,t){ return t===0?0:(p/t*100); }
-function desaturate(hex,f){
+function lighten(hex,f){
   hex=(hex||"").replace("#","");
   if(hex.length===3) hex=hex.split("").map(c=>c+c).join("");
   const r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);
-  const luma=0.299*r+0.587*g+0.114*b;
-  const ch=v=>Math.round(v+(luma-v)*f).toString(16).padStart(2,"0");
+  const ch=v=>Math.round(v+(255-v)*f).toString(16).padStart(2,"0");
   return "#"+ch(r)+ch(g)+ch(b);
 }
 
@@ -653,6 +742,37 @@ function setTheme(t){
 btnLight.addEventListener("click",()=>setTheme("light"));
 btnDark.addEventListener("click",()=>setTheme("dark"));
 if(window.matchMedia("(prefers-color-scheme:dark)").matches) setTheme("dark");
+
+// ================================================================
+// DATASET (A3/A5) SWITCH — pick the active report and reload to swap it in.
+// DATA / window.CASES / window.FILES are fixed names; the bootstrap loads the
+// matching cases file for the active dataset, so a switch is a clean page load.
+// ================================================================
+function setupDatasetSwitch(){
+  const cur=window.__DASH_DATASET__||"A3";
+  const btnA3=document.getElementById("btn-a3"), btnA5=document.getElementById("btn-a5");
+  function paint(){
+    btnA3.classList.toggle("active",cur==="A3"); btnA5.classList.toggle("active",cur==="A5");
+    btnA3.setAttribute("aria-checked",cur==="A3"); btnA5.setAttribute("aria-checked",cur==="A5");
+  }
+  btnA3.addEventListener("click",function(){
+    if(cur==="A3") return;
+    try{ localStorage.setItem("npu-dash-dataset","A3"); }catch(e){}
+    const u=new URL(location.href); u.searchParams.set("dataset","A3"); location.assign(u.toString());
+  });
+  btnA5.addEventListener("click",function(){
+    if(cur==="A5") return;
+    try{ localStorage.setItem("npu-dash-dataset","A5"); }catch(e){}
+    const u=new URL(location.href); u.searchParams.set("dataset","A5"); location.assign(u.toString());
+  });
+  paint();
+  const date=(DATA&&DATA.date)||"—";
+  const sub=document.getElementById("header-sub");
+  if(sub) sub.textContent="用例执行结果全景视图 · "+cur+" · 更新于 "+date;
+  const ft=document.getElementById("footer-note");
+  if(ft) ft.textContent="TorchNPU 社区用例看板 · "+cur+" · Generated "+date;
+}
+setupDatasetSwitch();
 
 // ================================================================
 // CANVAS UTILS
@@ -957,7 +1077,10 @@ function renderCasePie(){
   const extraHtml=
     '<div class="side-legend-divider"></div>'+
     '<div class="side-legend-item extra clickable" data-status="skipped"><span class="side-legend-dot" style="background:'+getCSS("--status-skipped")+'"></span><span class="side-legend-label">跳过用例（不计入看护）</span><span class="side-legend-value">'+fmt(cases.skipped)+'</span></div>'+
-    '<div class="side-legend-item extra clickable" data-status="blacklist_unsupported"><span class="side-legend-dot" style="background:'+getCSS("--status-blacklist_unsupported")+'"></span><span class="side-legend-label">Blacklist（不计入看护）</span><span class="side-legend-value">'+fmt(cases.blacklist_unsupported)+'</span></div>';
+    '<div class="side-legend-item extra clickable" data-status="blacklist_unsupported"><span class="side-legend-dot" style="background:'+getCSS("--status-blacklist_unsupported")+'"></span><span class="side-legend-label">Blacklist（不计入看护）</span><span class="side-legend-value">'+fmt(cases.blacklist_unsupported)+'</span></div>'+
+    ((cases.not_executed||0)>0 ?
+      '<div class="side-legend-item extra clickable" data-status="not_executed"><span class="side-legend-dot" style="background:'+getCSS("--status-not_executed")+'"></span><span class="side-legend-label">未执行（不计入看护）</span><span class="side-legend-value">'+fmt(cases.not_executed)+'</span></div>'
+      : '');
   document.getElementById("legend-case-pie").innerHTML=legendHtml+extraHtml;
 
   const tooltip=document.getElementById("tooltip-case-pie");
@@ -999,8 +1122,10 @@ function renderModules(){
   const names=Object.keys(DATA.sheets);
   const activeKeys=CASE_KEYS.filter(k=>Object.values(DATA.sheets).some(sh=>(sh[k]||0)>0));
   const maxTotal=Math.max(...names.map(n=>caseTotal(DATA.sheets[n])));
-  // 应收集目标 = 该模块各文件 公共 + CPU + NPU 预收集之和（与概览「用例目标」同口径）
+  // 应收集目标 = 该模块各文件 公共 + CPU + NPU 预收集之和（总量参考）。
+  // 其中「无需泛化」文件的预收集用例以淡蓝色标出，不计入目标。
   const files=window.FILES||[];
+  const snd=sndCaseTotals(files);
   const tgtByModule={};
   for(let i=0;i<files.length;i++){
     const it=files[i];
@@ -1015,10 +1140,10 @@ function renderModules(){
   const barH=Math.max(5,Math.min(10,(rowH-tgtGap-gap)/2));
   const barData=[];
   const tgtData=[];
-  // skipped / blacklist 色块降低饱和度，弱化非看护状态在堆叠条中的视觉权重
+  // skipped / blacklist / not_executed 色块变淡，弱化非看护状态在堆叠条中的视觉权重
   function barColor(k){
     const c=getCSS("--status-"+k);
-    return (k==="skipped"||k==="blacklist_unsupported")?desaturate(c,0.6):c;
+    return (k==="skipped"||k==="blacklist_unsupported"||k==="not_executed")?lighten(c,0.5):c;
   }
 
   ctx.strokeStyle=getCSS("--gridline");ctx.lineWidth=1;
@@ -1035,15 +1160,23 @@ function renderModules(){
     const sh=DATA.sheets[name];
     const y=padT+i*rowH;
     const barY=y+barH+tgtGap;
-    // 应收集目标（蓝色参考条，位于堆叠条上方）
+    // 应收集目标（蓝色参考条，位于堆叠条上方）：总量淡蓝打底，其中「无需泛化」
+    // 部分以淡蓝标出，需要处理的部分用实蓝覆盖。
     const tv=tgtByModule[name]||0;
+    const sndV=snd.byModule[name]||0;
     if(tv>0){
       const tw=(tv/maxVal)*plotW;
       ctx.globalAlpha=(hovered && hovered.module!==name)?0.3:1;
-      ctx.fillStyle=getCSS("--series-1");
+      ctx.fillStyle=lighten(getCSS("--series-1"),0.5);
       roundRect(ctx,padL,y,tw,barH,0);ctx.fill();
+      const need=tv-sndV;
+      if(need>0){
+        const nw=(need/maxVal)*plotW;
+        ctx.fillStyle=getCSS("--series-1");
+        roundRect(ctx,padL,y,nw,barH,0);ctx.fill();
+      }
       ctx.globalAlpha=1;
-      tgtData.push({x:padL,y,w:tw,h:barH,name,val:tv});
+      tgtData.push({x:padL,y,w:tw,h:barH,name,val:tv,snd:sndV});
     }
     let xOffset=padL;
     activeKeys.forEach(k=>{
@@ -1076,6 +1209,7 @@ function renderModules(){
 
   document.getElementById("legend-modules").innerHTML=
     '<div class="chart-legend-item"><span class="chart-legend-dot" style="background:'+getCSS("--series-1")+'"></span>收集目标（应收集用例）</div>'+
+    '<div class="chart-legend-item"><span class="chart-legend-dot" style="background:'+lighten(getCSS("--series-1"),0.5)+'"></span>其中无需泛化（不计入目标）</div>'+
     activeKeys.map(k=>
       `<div class="chart-legend-item"><span class="chart-legend-dot" style="background:${barColor(k)}"></span>${STATUS[k].label}</div>`
     ).join("");
@@ -1106,7 +1240,8 @@ function renderModules(){
     }
     if(tgtHit){
       canvas.style.cursor="default";
-      tooltip.innerHTML=`<strong>${tgtHit.name} · 收集目标</strong><br>${fmt(tgtHit.val)} 用例`;
+      tooltip.innerHTML=`<strong>${tgtHit.name} · 收集目标</strong><br>${fmt(tgtHit.val)} 用例`+
+        (tgtHit.snd>0?`（其中无需泛化 ${fmt(tgtHit.snd)}）`:"");
       tooltip.classList.add("visible");positionTooltip(tooltip,card,e);
       return;
     }
@@ -1148,7 +1283,7 @@ function renderTable(){
     const gen=caseTotal(sh);
     const watch=((sh.passed||0)+(sh.failed||0)+(sh.timeout||0)+(sh.error||0));
     const rate=watch>0?pct(sh.passed||0,watch):0;
-    return{name:n,files:sh.files,gen_files:sh.gen_files,gen_cases:gen,passed:sh.passed||0,failed:sh.failed||0,skipped:sh.skipped||0,blacklist_unsupported:sh.blacklist_unsupported||0,timeout:sh.timeout||0,error:sh.error||0,rate,sh};
+    return{name:n,files:sh.files,gen_files:sh.gen_files,gen_cases:gen,passed:sh.passed||0,failed:sh.failed||0,skipped:sh.skipped||0,blacklist_unsupported:sh.blacklist_unsupported||0,not_executed:sh.not_executed||0,timeout:sh.timeout||0,error:sh.error||0,rate,sh};
   });
   rows.sort((a,b)=>{
     const va=a[tableSort.key],vb=b[tableSort.key];
@@ -1167,6 +1302,7 @@ function renderTable(){
       ${jumpCell(fmt(r.failed),r.name,"failed","num",noCases)}
       ${jumpCell(fmt(r.skipped),r.name,"skipped","num",noCases)}
       ${jumpCell(fmt(r.blacklist_unsupported),r.name,"blacklist_unsupported","num",noCases)}
+      ${jumpCell(fmt(r.not_executed),r.name,"not_executed","num",noCases)}
       ${jumpCell(fmt(r.timeout),r.name,"timeout","num",noCases)}
       ${jumpCell(fmt(r.error),r.name,"error","num",noCases)}
       <td class="num">${rateStr}</td>
@@ -1181,6 +1317,7 @@ function renderTable(){
     ${jumpCell(fmt(DATA.cases.failed),"all","failed","num")}
     ${jumpCell(fmt(DATA.cases.skipped),"all","skipped","num")}
     ${jumpCell(fmt(DATA.cases.blacklist_unsupported),"all","blacklist_unsupported","num")}
+    ${jumpCell(fmt(DATA.cases.not_executed||0),"all","not_executed","num")}
     ${jumpCell(fmt(DATA.cases.timeout),"all","timeout","num")}
     ${jumpCell(fmt(DATA.cases.error),"all","error","num")}
     <td class="num">${totalWatch>0?pct(DATA.cases.passed,totalWatch).toFixed(1):"0.0"}%</td></tr>`);
@@ -1219,6 +1356,7 @@ function renderCollectProgress(){
   var el=document.getElementById("collect-progress");
   if(!el) return;
   var files=window.FILES||[];
+  var snd=sndCaseTotals(files);   // 无需泛化：total=预收集（剔除目标）/ num=已收集（剔除已收集）
   var collected=DATA.blacklist_total||0, pubTotal=0, cpuTotal=0, npuTotal=0;   // 已收集 = 实际运行 + blacklist
   for(var i=0;i<files.length;i++){
     var it=files[i];
@@ -1227,23 +1365,38 @@ function renderCollectProgress(){
     cpuTotal  += it[7]||0;     // CPU预收集
     npuTotal  += it[8]||0;     // NPU预收集 (PrivateUse1)
   }
-  var target = pubTotal + cpuTotal + npuTotal;
+  var target = pubTotal + cpuTotal + npuTotal - snd.total;
   var pct = target>0 ? collected/target*100 : 0;
   var pctTxt = pct.toFixed(1)+"%";
   var compose=[
-    {label:"公共用例", value:pubTotal, color:getCSS("--series-1")},
-    {label:"CPU泛化用例", value:cpuTotal, color:getCSS("--series-2")},
-    {label:"PrivateUse1泛化用例", value:npuTotal, color:getCSS("--series-3")}
+    {label:"公共用例", value:pubTotal-snd.pub, color:getCSS("--series-1")},
+    {label:"CPU泛化用例", value:cpuTotal-snd.cpu, color:getCSS("--series-2")},
+    {label:"PU1泛化用例", value:npuTotal-snd.npu, color:getCSS("--series-3")}
   ];
   var legend="";
   for(var j=0;j<compose.length;j++){
     var c=compose[j];
     legend+='<span class="compose-item"><span class="compose-dot" style="background:'+c.color+'"></span><span>'+c.label+'</span><span class="compose-val">'+fmt(c.value)+'</span></span>';
   }
+  if(snd.total>0){
+    legend+='<span class="compose-divider"></span>'+
+      '<span class="compose-item compose-muted"><span class="compose-dot" style="background:'+getCSS("--gen-snd")+'"></span><span>无需泛化（不计入目标）</span><span class="compose-val">'+fmt(snd.total)+'</span></span>';
+    var sndParts=[
+      {label:"公共", value:snd.pub, color:getCSS("--series-1")},
+      {label:"CPU", value:snd.cpu, color:getCSS("--series-2")},
+      {label:"PU1", value:snd.npu, color:getCSS("--series-3")}
+    ];
+    legend+='<span class="compose-subrow">';
+    for(var k=0;k<sndParts.length;k++){
+      var sp=sndParts[k];
+      legend+='<span class="compose-item compose-sub"><span class="compose-dot" style="background:'+sp.color+'"></span><span>'+sp.label+'</span><span class="compose-val">'+fmt(sp.value)+'</span></span>';
+    }
+    legend+='</span>';
+  }
   // 汇总宫格（与概览同步，失败用例数已移除）
   var tiles=[
-    {label:"收集测试文件", value:fmt(DATA.files_total), sub:"含无需泛化的文件 "+fmt(DATA.files_snd), accent:"var(--series-7)", color:""},
-    {label:"收集测试用例", value:fmt(DATA.cases_total), sub:"含 blacklist "+fmt(DATA.blacklist_total), accent:"var(--series-7)", color:""},
+    {label:"应收集的测试文件", value:fmt(DATA.files_total-DATA.files_snd), sub:"总量 "+fmt(DATA.files_total)+"（含无需泛化文件"+fmt(DATA.files_snd)+"）", accent:"var(--series-7)", color:""},
+    {label:"收集测试用例", value:fmt(DATA.cases_total - snd.num), sub:"含 blacklist "+fmt(DATA.blacklist_total)+"，其中剔除无需泛化的用例 "+fmt(snd.num), accent:"var(--series-7)", color:""},
     {label:"已泛化文件", value:fmt(DATA.files_gen), sub:"泛化率 "+DATA.files_gen_rate.toFixed(1)+"%", accent:"var(--gen-yes)", color:"var(--gen-yes)"},
     {label:"看护用例数", value:fmt(DATA.cases.passed+DATA.cases.failed+DATA.cases.error+DATA.cases.timeout), sub:"通过 "+fmt(DATA.cases.passed)+" · 失败 "+fmt(DATA.cases.failed)+" · 错误/超时 "+fmt(DATA.cases.error+DATA.cases.timeout), accent:"var(--series-1)", color:"var(--series-1)"}
   ];
@@ -1267,9 +1420,11 @@ function renderCollectProgress(){
       '<div class="progress-right">'+
         '<div class="progress-head">'+
           '<span class="progress-title">用例收集进度</span>'+
+        '</div>'+
+        '<div class="progress-metrics">'+
+          '<span class="progress-nums">已收集 '+fmt(collected)+' / 目标 '+fmt(target)+' 用例</span>'+
           '<span class="progress-pct">'+pctTxt+'</span>'+
         '</div>'+
-        '<div class="progress-nums">已收集 '+fmt(collected)+' / 目标 '+fmt(target)+' 用例</div>'+
         '<div class="progress-track"><div class="progress-fill" style="width:'+pctTxt+'"></div></div>'+
         '<div class="summary-strip">'+tilesHtml+'</div>'+
       '</div>'+
@@ -1305,6 +1460,11 @@ function renderCollectProgress(){
   }
 }
 function renderAll(){
+  if(DATA_EMPTY){
+    document.body.classList.add("no-data");
+    return;
+  }
+  document.body.classList.remove("no-data");
   var charts=["renderCollectProgress","renderFileDonut","renderFileModules","renderCasePie","renderModules","renderTable","renderSectionSubs"];
   for(var i=0;i<charts.length;i++){
     try{ window[charts[i]](); }
@@ -1345,7 +1505,7 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
   });
 
   // Populate the file-view module filter from every module (with or without cases).
-  Object.keys(DATA.sheets).forEach(function(m){
+  (DATA&&DATA.sheets?Object.keys(DATA.sheets):[]).forEach(function(m){
     const o=document.createElement("option");
     o.value=m; o.textContent=m;
     fileModuleEl.appendChild(o);
@@ -1391,6 +1551,7 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
   // on that raw value regardless of the status filter). Labels are the compact
   // Running/CANN/Device tags from skipTag().
   function initSkipFilter(){
+    if(!DATA) return;
     const seen={};
     Object.keys(DATA.skip_categories||{}).forEach(function(st){
       (DATA.skip_categories[st]||[]).forEach(function(sc){
