@@ -259,11 +259,11 @@ regeneration leaves them unchanged:
     matched). Each module row also draws a thin blue **收集目标** bar above the
     stacked bar — the module's should-collect total (`公共 + CPU + NPU` 预收集, same
     口径 as the overview `用例目标`) — as a non-clickable reference on the same axis;
-    the 无需泛化 portion of that total is drawn in a lighter blue so the
-    should-collect / 无需泛化 split stays visible, and the axis max is
+    the Should Not Do portion of that total is drawn in a lighter blue so the
+    should-collect / Should Not Do split stays visible, and the axis max is
     `max(已收集最大值, 目标最大值)`. Both bars are equal height. Hovering the 收集目标
     bar shows a tooltip with its case count (`模块 · 收集目标 / N 用例`, plus the
-    无需泛化 count when non-zero) but it stays non-clickable (cursor stays default,
+    Should Not Do count when non-zero) but it stays non-clickable (cursor stays default,
     no drill-down).
   - module-summary table cell → the module name / 收集用例 cells filter by module
     only; a Passed/Failed/Skipped/Blacklist/Timeout/Error count filters by
@@ -294,13 +294,13 @@ regeneration leaves them unchanged:
   (High/Medium/Low/Should Not Do) / 已泛化·未泛化 badge — every column always rendered
   so they line up vertically, empty when a value is missing; a `.tree-head` header
   row labels the columns). Its toolbar has a text search plus **multi-select**
-  checkbox dropdowns for module, gen-status (全部/已泛化/未泛化/无需泛化), status
+  checkbox dropdowns for module, gen-status (全部/已泛化/未泛化/Should Not Do), status
   (全部状态/Done/In Progress/Todo/Backlog/未跟踪), priority (全部优先级/High/Medium/Low/
   Should Not Do/无优先级), and assignee (全部负责人/…/未分配, populated from the
   distinct assignees), all combined with AND. The `none` option in the status /
   priority / assignee filters means "empty field" (未跟踪 / 无优先级 / 未分配).
   The file-level charts drill down into it via `window.openFilesTab(filter)`:
-  - 文件泛化率 donut slice / legend item → filter by gen status (已泛化 / 未泛化 / 无需泛化).
+  - 文件泛化率 donut slice / legend item → filter by gen status (已泛化 / 未泛化 / Should Not Do).
   - 各模块文件泛化情况 bar segment → filter by module + gen status; a module row's
     grey (未泛化) area → filter by module only.
   - Clicking a generalized file row (its file label or 已泛化用例数) →
@@ -358,8 +358,8 @@ same folder as `index.html`). Confirm:
   counts and the percentage sit on one line above the bar); both are computed client-side from
   `window.FILES`. The 4 summary tiles live inside this card as a 2×2 grid (the former 失败用例数
   tile was removed), in order:
-  应收集的测试文件 (`files_total - files_snd`, sub 总量 `files_total` 含无需泛化文件 `files_snd`) /
-  收集测试用例 (`cases_total - snd.num`, sub 含 blacklist `blacklist_unsupported`，其中剔除无需泛化的
+  应收集的测试文件 (`files_total - files_snd`, sub 总量 `files_total` 含 Should Not Do 文件 `files_snd`) /
+  收集测试用例 (`cases_total - snd.num`, sub 含 blacklist `blacklist_unsupported`，其中剔除 Should Not Do 的
   用例 `snd.num`) / 已泛化文件 (`files_gen`, sub 泛化率) / 看护用例数 (通过 + 失败 + 错误/超时).
 - Case-level: 用例执行结果分布 donut + 各模块用例执行结果 stacked bar (each row topped by a blue
   收集目标 reference bar) + 模块详情汇总 table

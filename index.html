@@ -444,7 +444,7 @@ body.no-data #empty-state{display:flex}
     </div>
     <div class="chart-card" id="card-file-modules">
       <div class="chart-title">各模块文件泛化情况</div>
-      <div class="chart-subtitle">蓝 = 已泛化 · 灰 = 未泛化 · 淡灰 = 无需泛化</div>
+      <div class="chart-subtitle">蓝 = 已泛化 · 灰 = 未泛化 · 淡灰 = Should Not Do</div>
       <div class="chart-body" style="min-height:200px"><canvas id="chart-file-modules"></canvas></div>
       <div class="chart-legend" id="legend-file-modules"></div>
       <div class="chart-tooltip" id="tooltip-file-modules"></div>
@@ -493,7 +493,7 @@ body.no-data #empty-state{display:flex}
         <option value="all">全部文件</option>
         <option value="gen">已泛化</option>
         <option value="na">未泛化</option>
-        <option value="snd">无需泛化</option>
+        <option value="snd">Should Not Do</option>
       </select>
       <select id="file-status" aria-label="按跟踪状态筛选">
         <option value="all">全部状态</option>
@@ -818,7 +818,7 @@ function renderFileDonut(){
   const items=[
     {label:"已泛化",value:DATA.files_gen,color:getCSS("--gen-yes"),gen:1},
     {label:"未泛化",value:DATA.files_na,color:getCSS("--gen-no"),gen:0},
-    {label:"无需泛化",value:DATA.files_snd,color:getCSS("--gen-snd"),gen:2}
+    {label:"Should Not Do",value:DATA.files_snd,color:getCSS("--gen-snd"),gen:2}
   ];
   const total=DATA.files_total;
   const rateBase=DATA.files_gen+DATA.files_na; // 泛化率分母 = 已泛化 + 未泛化（不含 无需泛化）
@@ -957,7 +957,7 @@ function renderFileModules(){
   document.getElementById("legend-file-modules").innerHTML=`
     <div class="chart-legend-item"><span class="chart-legend-dot" style="background:${getCSS('--gen-yes')}"></span>已泛化文件</div>
     <div class="chart-legend-item"><span class="chart-legend-dot" style="background:${getCSS('--gen-no')}"></span>未泛化文件</div>
-    <div class="chart-legend-item"><span class="chart-legend-dot" style="background:${getCSS('--gen-snd')}"></span>无需泛化文件</div>
+    <div class="chart-legend-item"><span class="chart-legend-dot" style="background:${getCSS('--gen-snd')}"></span>Should Not Do 文件</div>
   `;
 
   const tooltip=document.getElementById("tooltip-file-modules");
@@ -981,7 +981,7 @@ function renderFileModules(){
       if(hit.gen===1){
         tooltip.innerHTML=`<strong>${hit.name} · 已泛化文件</strong><br>${hit.genFiles}/${base} 文件 (${pct(hit.genFiles,base).toFixed(1)}%)`;
       }else if(hit.gen===2){
-        tooltip.innerHTML=`<strong>${hit.name} · 无需泛化文件</strong><br>${hit.sndFiles} 文件`;
+        tooltip.innerHTML=`<strong>${hit.name} · Should Not Do 文件</strong><br>${hit.sndFiles} 文件`;
       }else{
         const na=hit.files-hit.genFiles-hit.sndFiles;
         tooltip.innerHTML=`<strong>${hit.name} · 未泛化文件</strong><br>${na}/${base} 文件 (${pct(na,base).toFixed(1)}%)`;
@@ -1209,7 +1209,7 @@ function renderModules(){
 
   document.getElementById("legend-modules").innerHTML=
     '<div class="chart-legend-item"><span class="chart-legend-dot" style="background:'+getCSS("--series-1")+'"></span>收集目标（应收集用例）</div>'+
-    '<div class="chart-legend-item"><span class="chart-legend-dot" style="background:'+lighten(getCSS("--series-1"),0.5)+'"></span>其中无需泛化（不计入目标）</div>'+
+    '<div class="chart-legend-item"><span class="chart-legend-dot" style="background:'+lighten(getCSS("--series-1"),0.5)+'"></span>其中 Should Not Do（不计入目标）</div>'+
     activeKeys.map(k=>
       `<div class="chart-legend-item"><span class="chart-legend-dot" style="background:${barColor(k)}"></span>${STATUS[k].label}</div>`
     ).join("");
@@ -1241,7 +1241,7 @@ function renderModules(){
     if(tgtHit){
       canvas.style.cursor="default";
       tooltip.innerHTML=`<strong>${tgtHit.name} · 收集目标</strong><br>${fmt(tgtHit.val)} 用例`+
-        (tgtHit.snd>0?`（其中无需泛化 ${fmt(tgtHit.snd)}）`:"");
+        (tgtHit.snd>0?`（其中 Should Not Do ${fmt(tgtHit.snd)}）`:"");
       tooltip.classList.add("visible");positionTooltip(tooltip,card,e);
       return;
     }
@@ -1395,8 +1395,8 @@ function renderCollectProgress(){
   }
   // 汇总宫格（与概览同步，失败用例数已移除）
   var tiles=[
-    {label:"应收集的测试文件", value:fmt(DATA.files_total-DATA.files_snd), sub:"总量 "+fmt(DATA.files_total)+"（含无需泛化文件"+fmt(DATA.files_snd)+"）", accent:"var(--series-7)", color:""},
-    {label:"收集测试用例", value:fmt(DATA.cases_total - snd.num), sub:"含 blacklist "+fmt(DATA.cases.blacklist_unsupported)+"，其中剔除无需泛化的用例 "+fmt(snd.num), accent:"var(--series-7)", color:""},
+    {label:"应收集的测试文件", value:fmt(DATA.files_total-DATA.files_snd), sub:"总量 "+fmt(DATA.files_total)+"（含 Should Not Do 文件"+fmt(DATA.files_snd)+"）", accent:"var(--series-7)", color:""},
+    {label:"收集测试用例", value:fmt(DATA.cases_total - snd.num), sub:"含 blacklist "+fmt(DATA.cases.blacklist_unsupported)+"，其中剔除 Should Not Do 的用例 "+fmt(snd.num), accent:"var(--series-7)", color:""},
     {label:"已泛化文件", value:fmt(DATA.files_gen), sub:"泛化率 "+DATA.files_gen_rate.toFixed(1)+"%", accent:"var(--gen-yes)", color:"var(--gen-yes)"},
     {label:"看护用例数", value:fmt(DATA.cases.passed+DATA.cases.failed+DATA.cases.error+DATA.cases.timeout), sub:"通过 "+fmt(DATA.cases.passed)+" · 失败 "+fmt(DATA.cases.failed)+" · 错误/超时 "+fmt(DATA.cases.error+DATA.cases.timeout), accent:"var(--series-1)", color:"var(--series-1)"}
   ];
