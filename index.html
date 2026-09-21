@@ -1380,7 +1380,7 @@ function renderCollectProgress(){
   }
   if(snd.total>0){
     legend+='<span class="compose-divider"></span>'+
-      '<span class="compose-item compose-muted"><span class="compose-dot" style="background:'+getCSS("--gen-snd")+'"></span><span>无需泛化（不计入目标）</span><span class="compose-val">'+fmt(snd.total)+'</span></span>';
+      '<span class="compose-item compose-muted"><span class="compose-dot" style="background:'+getCSS("--gen-snd")+'"></span><span>不计入目标（Should Not Do）：</span><span class="compose-val">'+fmt(snd.total)+'</span></span>';
     var sndParts=[
       {label:"公共", value:snd.pub, color:getCSS("--series-1")},
       {label:"CPU", value:snd.cpu, color:getCSS("--series-2")},

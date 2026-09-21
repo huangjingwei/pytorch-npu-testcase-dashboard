@@ -274,7 +274,7 @@ regeneration leaves them unchanged:
   (`files_snd`) — don't need generalization. Two distinct case metrics apply, both computed
   client-side by `sndCaseTotals(files)`:
   - **pre-collection** (`total`/`pub`/`cpu`/`npu` = `公共 + CPU + NPU` 预收集) — excluded from
-    the 收集目标 donut target and drawn as a muted「无需泛化（不计入目标）」legend entry with a
+    the 收集目标 donut target and drawn as a muted「不计入目标（Should Not Do）」legend entry with a
     smaller 公共/CPU/PU1 sub-breakdown on one line; the module 收集目标 bars shade this portion
     lighter blue.
   - **collected** (`num` = `实际运行数量`, i.e. 收集出来的用例) — excluded from the 收集测试用例
@@ -352,7 +352,7 @@ same folder as `index.html`). Confirm:
 
 - Overview top: 用例收集进度 card — a target-composition donut on the left (titled
   `用例目标`; 公共用例 / CPU泛化用例 / PU1泛化用例 sized by share of the 目标, with the 无需泛化
-  预收集 excluded and shown as a muted「无需泛化（不计入目标）」legend entry plus a smaller
+  预收集 excluded and shown as a muted「不计入目标（Should Not Do）」legend entry plus a smaller
   公共/CPU/PU1 sub-breakdown; same size as the 用例执行结果分布 pie) and the 收集进度 bar on the
   right (已收集 = 实际运行 + blacklist_total（含 Running Skiped，展示时并入 skipped）, 目标 = 公共 + CPU + NPU 收集 − 无需泛化预收集; 已收集/目标
   counts and the percentage sit on one line above the bar); both are computed client-side from
