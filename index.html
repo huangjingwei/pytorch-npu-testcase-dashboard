@@ -289,7 +289,9 @@ td.cell-click:hover .cell-link{text-decoration:underline;color:var(--text-primar
 .empty-state .es-emoji{font-size:2.5rem;line-height:1}
 .empty-state .es-title{font-size:1.125rem;font-weight:600;color:var(--text-primary)}
 .empty-state .es-sub{font-size:0.8125rem;color:var(--text-muted)}
-body.no-data #view-overview > *:not(#empty-state){display:none!important}
+body.no-data #total-overview,
+body.no-data .scenario-tabs,
+body.no-data .scenario-content{display:none!important}
 body.no-data #empty-state{display:flex}
 
 /* Test-files list — trailing columns are fixed-width so tags line up across rows */
@@ -327,6 +329,40 @@ body.no-data #empty-state{display:flex}
 .tree-head .tree-head-gen{flex:0 0 52px;text-align:center}
 
 @media(max-width:900px){.chart-grid{grid-template-columns:1fr}}
+
+/* 用例总览 (top, from Total) + 场景切换 */
+.total-overview{display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:12px}
+.total-overview .chart-card{border-radius:var(--radius)}
+.watch-body{display:flex;flex-direction:column;gap:14px}
+.watch-flow{display:flex;align-items:stretch;flex-wrap:wrap;gap:6px}
+.wf-chip{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:9px 16px;border-radius:10px;background:var(--surface-page);border:1px solid var(--border);min-width:76px}
+.wf-chip .wf-n{font-size:1.125rem;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text-primary);line-height:1.05}
+.wf-chip .wf-l{font-size:0.625rem;color:var(--text-muted);font-weight:500;white-space:nowrap}
+.wf-chip.wf-result{background:var(--gen-yes);border-color:transparent;box-shadow:0 2px 10px rgba(0,0,0,0.16),inset 0 1px 0 rgba(255,255,255,0.24)}
+.wf-chip.wf-result .wf-n{color:#fff}
+.wf-chip.wf-result .wf-l{color:rgba(255,255,255,0.84)}
+.wf-op{align-self:center;color:var(--text-muted);font-size:1.125rem;font-weight:600;line-height:1}
+.wf-op.wf-eq{color:var(--gen-yes)}
+.watch-flow.is-empty .wf-chip{border-style:dashed}
+.watch-flow.is-empty .wf-chip .wf-n{color:var(--text-muted)}
+.scenario-tabs{display:flex;align-items:flex-start;margin:0 0 -1px 16px;position:relative;z-index:2}
+.scenario-tab{position:relative;z-index:0;appearance:none;border:none;margin:0;padding:4px 14px 3px;background:transparent;font-family:inherit;font-size:0.75rem;font-weight:400;line-height:1.3;color:var(--text-muted);cursor:pointer;transition:color .15s ease}
+.scenario-tab+.scenario-tab{margin-left:-6px}
+.sc-tab-shape{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.sc-tab-shape polyline{fill:var(--surface-card);stroke:var(--border);stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;transition:fill .15s ease}
+.sc-tab-shape .sc-tab-bottom{stroke:var(--border);stroke-width:1;stroke-linecap:butt}
+.scenario-tab.active .sc-tab-bottom{display:none}
+.sc-txt{position:relative;z-index:1}
+.scenario-tab:hover .sc-tab-shape polyline{fill:var(--gridline)}
+.scenario-tab:hover{color:var(--text-primary)}
+.scenario-tab.active{color:var(--gen-yes);font-weight:700;z-index:1}
+/* 内容卡片：包裹下方场景内容（总量用例 / 社区解耦用例）；两个正梯形页签从其顶边伸出，底边开口与卡片轮廓连成一体 */
+.scenario-content{background:var(--surface-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px}
+.scenario-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:56px 24px;text-align:center;background:var(--surface-card);border:1px dashed var(--border);border-radius:var(--radius);margin-bottom:14px}
+.scenario-empty .sc-e-emoji{font-size:2rem;line-height:1}
+.scenario-empty .sc-e-title{font-size:1rem;font-weight:600;color:var(--text-primary)}
+.scenario-empty .sc-e-sub{font-size:0.8125rem;color:var(--text-muted)}
+@media(max-width:900px){.total-overview{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -349,13 +385,26 @@ body.no-data #empty-state{display:flex}
     </div>
   </header>
 
-  <nav class="tabs" role="tablist" aria-label="看板视图">
-    <button class="tab active" data-view="overview" role="tab" aria-selected="true">概览</button>
-    <button class="tab" data-view="details" role="tab" aria-selected="false">用例详情</button>
-    <button class="tab" data-view="files" role="tab" aria-selected="false">测试文件</button>
-  </nav>
+  <!-- ============================================================
+       SECTION 0: 用例总览 (top of page, from Total 总量)
+       ============================================================ -->
+  <div class="total-overview" id="total-overview">
+    <div class="chart-card total-watch-card">
+      <div class="watch-body" id="total-watch"></div>
+    </div>
+  </div>
 
-  <div id="view-overview">
+  <!-- 场景切换：正梯形页签，从下方内容卡片顶边伸出（全局，控制概览/用例详情/测试文件三个视图） -->
+  <div class="scenario-tabs" role="tablist" aria-label="场景切换">
+    <button class="scenario-tab active" id="scn-total" type="button" role="tab" aria-selected="true">
+      <svg class="sc-tab-shape" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true"><polyline vector-effect="non-scaling-stroke" points="0,28 10,0 90,0 100,28"/><line class="sc-tab-bottom" vector-effect="non-scaling-stroke" x1="0" y1="28" x2="100" y2="28"/></svg>
+      <span class="sc-txt">总量用例</span>
+    </button>
+    <button class="scenario-tab" id="scn-decouple" type="button" role="tab" aria-selected="false">
+      <svg class="sc-tab-shape" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true"><polyline vector-effect="non-scaling-stroke" points="0,28 10,0 90,0 100,28"/><line class="sc-tab-bottom" vector-effect="non-scaling-stroke" x1="0" y1="28" x2="100" y2="28"/></svg>
+      <span class="sc-txt">社区解耦用例</span>
+    </button>
+  </div>
 
   <!-- 暂无数据占位（当数据集为空时显示） -->
   <div id="empty-state" class="empty-state">
@@ -363,6 +412,28 @@ body.no-data #empty-state{display:flex}
     <div class="es-title">该报告暂无数据</div>
     <div class="es-sub">A5 报告数据尚未生成，请切换回 A3 报告查看。</div>
   </div>
+
+  <!-- 场景内容卡片：包裹总量用例 / 社区解耦用例两个场景的内容，与上方选中的正梯形页签衔接 -->
+  <div class="scenario-content" id="scenario-content">
+  <!-- 场景：总量用例（数据待生成） -->
+  <div id="scenario-total">
+    <div class="scenario-empty">
+      <div class="sc-e-emoji">🛠️</div>
+      <div class="sc-e-title">总量用例数据待生成</div>
+      <div class="sc-e-sub">总量（全量执行）场景的概览、用例详情、测试文件数据暂未生成，后续补充生成逻辑。</div>
+    </div>
+  </div>
+
+  <!-- 场景：社区解耦用例（概览 + 用例详情 + 测试文件） -->
+  <div id="scenario-decouple" hidden>
+
+  <nav class="tabs" role="tablist" aria-label="看板视图">
+    <button class="tab active" data-view="overview" role="tab" aria-selected="true">概览</button>
+    <button class="tab" data-view="details" role="tab" aria-selected="false">用例详情</button>
+    <button class="tab" data-view="files" role="tab" aria-selected="false">测试文件</button>
+  </nav>
+
+  <div id="view-overview">
 
   <!-- 用例收集进度 + 汇总宫格 — generated by JS -->
   <div class="progress-card" id="collect-progress"></div>
@@ -513,6 +584,8 @@ body.no-data #empty-state{display:flex}
     </div>
     <div class="tree" id="file-list"></div>
   </div>
+  </div><!-- /scenario-decouple -->
+  </div><!-- /scenario-content -->
 
   <div class="footer" id="footer-note">TorchNPU 社区用例看板 · Generated —</div>
 </div>
@@ -538,40 +611,40 @@ body.no-data #empty-state{display:flex}
 // ================================================================
 const DATA_A3 = /*__DATA_BEGIN__*/
 {
-  "files_total": 1219,
-  "files_gen": 290,
-  "files_na": 755,
-  "files_gen_rate": 27.8,
-  "cases_total": 255951,
+  "files_total": 1224,
+  "files_gen": 307,
+  "files_na": 743,
+  "files_gen_rate": 29.2,
+  "cases_total": 261700,
   "cases": {
-    "passed": 194548,
-    "failed": 7877,
-    "skipped": 35412,
+    "passed": 198396,
+    "failed": 8834,
+    "skipped": 36312,
     "not_executed": 0,
     "timeout": 0,
-    "error": 146,
+    "error": 190,
     "blacklist_unsupported": 17968
   },
-  "blacklist_total": 19490,
+  "blacklist_total": 19456,
   "skip_categories": {
     "skipped": [
       "Running Skiped"
     ],
     "blacklist_unsupported": [
-      "cann not supported",
-      "device not supported"
+      "device not supported",
+      "cann not supported"
     ]
   },
-  "cases_pass_rate": 96.0,
+  "cases_pass_rate": 95.6,
   "sheets": {
     "Core": {
       "files": 53,
-      "gen_files": 29,
-      "na_files": 21,
-      "gen_cases": 11785,
-      "passed": 8515,
-      "failed": 511,
-      "skipped": 1835,
+      "gen_files": 32,
+      "na_files": 18,
+      "gen_cases": 12792,
+      "passed": 9389,
+      "failed": 610,
+      "skipped": 1869,
       "not_executed": 0,
       "timeout": 0,
       "error": 0,
@@ -580,26 +653,26 @@ const DATA_A3 = /*__DATA_BEGIN__*/
     },
     "Distributed": {
       "files": 252,
-      "gen_files": 39,
-      "na_files": 213,
-      "gen_cases": 400,
-      "passed": 267,
+      "gen_files": 40,
+      "na_files": 212,
+      "gen_cases": 498,
+      "passed": 284,
       "failed": 0,
-      "skipped": 15,
+      "skipped": 52,
       "not_executed": 0,
       "timeout": 0,
-      "error": 118,
+      "error": 162,
       "blacklist_unsupported": 0,
       "snd_files": 0
     },
     "Graph": {
       "files": 536,
-      "gen_files": 152,
-      "na_files": 284,
-      "gen_cases": 62423,
-      "passed": 43767,
-      "failed": 1850,
-      "skipped": 16714,
+      "gen_files": 163,
+      "na_files": 273,
+      "gen_cases": 63038,
+      "passed": 44296,
+      "failed": 1918,
+      "skipped": 16732,
       "not_executed": 0,
       "timeout": 0,
       "error": 27,
@@ -608,12 +681,12 @@ const DATA_A3 = /*__DATA_BEGIN__*/
     },
     "Math": {
       "files": 16,
-      "gen_files": 0,
-      "na_files": 16,
-      "gen_cases": 0,
-      "passed": 0,
+      "gen_files": 1,
+      "na_files": 15,
+      "gen_cases": 67,
+      "passed": 65,
       "failed": 0,
-      "skipped": 0,
+      "skipped": 2,
       "not_executed": 0,
       "timeout": 0,
       "error": 0,
@@ -621,12 +694,12 @@ const DATA_A3 = /*__DATA_BEGIN__*/
       "snd_files": 0
     },
     "Other": {
-      "files": 108,
+      "files": 113,
       "gen_files": 20,
-      "na_files": 88,
-      "gen_cases": 3053,
+      "na_files": 93,
+      "gen_cases": 3054,
       "passed": 2883,
-      "failed": 81,
+      "failed": 82,
       "skipped": 89,
       "not_executed": 0,
       "timeout": 0,
@@ -650,12 +723,12 @@ const DATA_A3 = /*__DATA_BEGIN__*/
     },
     "Tensor": {
       "files": 69,
-      "gen_files": 26,
-      "na_files": 7,
-      "gen_cases": 177539,
-      "passed": 138587,
-      "failed": 5351,
-      "skipped": 16625,
+      "gen_files": 27,
+      "na_files": 6,
+      "gen_cases": 181500,
+      "passed": 140950,
+      "failed": 6140,
+      "skipped": 17434,
       "not_executed": 0,
       "timeout": 0,
       "error": 1,
@@ -678,13 +751,30 @@ const DATA_A3 = /*__DATA_BEGIN__*/
     }
   },
   "files_snd": 174,
-  "date": "2026-09-19",
+  "date": "2026-09-23",
   "dataset": "A3"
 }
   /*__DATA_END__*/;
 const DATA_A5 = /*__DATA_A5_BEGIN__*/ null /*__DATA_A5_END__*/;
 const DATA = (window.__DASH_DATASET__ === "A5") ? DATA_A5 : DATA_A3;
 const DATA_EMPTY = !DATA || !DATA.sheets || Object.keys(DATA.sheets).length === 0;
+const TOTAL_OVERVIEW = /*__TOTAL_BEGIN__*/
+{
+  "dist": {
+    "pub": 144136,
+    "cpu": 232699,
+    "npu": 194261
+  },
+  "watch": {
+    "collected": 567438,
+    "community_skip": 139086,
+    "blocklist": 29884,
+    "snd": 32444,
+    "result": 366024
+  },
+  "date": "2026-09-23"
+}
+  /*__TOTAL_END__*/;
 
 
 const STATUS = {
@@ -773,6 +863,38 @@ function setupDatasetSwitch(){
   if(ft) ft.textContent="TorchNPU 社区用例看板 · "+cur+" · Generated "+date;
 }
 setupDatasetSwitch();
+
+// ================================================================
+// SCENARIO (总量用例/社区解耦用例) SWITCH — 全局切换（概览/用例详情/测试文件三个视图），仅显隐，不重载。
+// ================================================================
+function setupScenarioSwitch(){
+  const totalBtn=document.getElementById("scn-total"), decBtn=document.getElementById("scn-decouple");
+  const totalEl=document.getElementById("scenario-total"), decEl=document.getElementById("scenario-decouple");
+  if(!totalBtn||!decBtn||!totalEl||!decEl) return;
+  let cur="total";
+  try{ cur=localStorage.getItem("npu-dash-scenario")||"total"; }catch(e){}
+  if(cur!=="total"&&cur!=="decouple") cur="total";
+  function paint(){
+    totalBtn.classList.toggle("active",cur==="total");
+    decBtn.classList.toggle("active",cur==="decouple");
+    totalBtn.setAttribute("aria-selected",cur==="total");
+    decBtn.setAttribute("aria-selected",cur==="decouple");
+    totalEl.hidden=(cur!=="total");
+    decEl.hidden=(cur!=="decouple");
+  }
+  totalBtn.addEventListener("click",function(){
+    cur="total"; try{localStorage.setItem("npu-dash-scenario","total");}catch(e){}
+    paint();
+  });
+  decBtn.addEventListener("click",function(){
+    cur="decouple"; try{localStorage.setItem("npu-dash-scenario","decouple");}catch(e){}
+    paint();
+    // 模块堆叠条按容器实测宽度绘制，隐藏时宽度为 0 —— 切回社区解耦用例后重绘一次。
+    renderAll();
+  });
+  paint();
+}
+setupScenarioSwitch();
 
 // ================================================================
 // CANVAS UTILS
@@ -1459,13 +1581,38 @@ function renderCollectProgress(){
     cctx.fillText("目标",cx,cy+14);
   }
 }
+// 顶部「用例总览」：用例看护策略公式，数据来自总量（Total）。
+function renderTotalOverview(){
+  var card=document.getElementById("total-overview");
+  var watch=document.getElementById("total-watch");
+  if(!card||!watch) return;
+  var w=(TOTAL_OVERVIEW && TOTAL_OVERVIEW.watch)?TOTAL_OVERVIEW.watch:null;
+  var terms=[
+    {l:"社区总量用例", n:w?w.collected:null},
+    {l:"社区跳过用例", n:w?w.community_skip:null},
+    {l:"黑名单跳过用例", n:w?w.blocklist:null},
+    {l:"社区日落用例", n:w?w.snd:null}
+  ];
+  var result=w?w.result:null;
+  var num=function(v){ return v==null?"—":fmt(v); };
+  var h='<div class="watch-flow'+(w?'':' is-empty')+'">';
+  h+='<div class="wf-chip'+(w?' wf-result':'')+'"><span class="wf-n">'+num(result)+'</span><span class="wf-l">看护用例</span></div>';
+  h+='<span class="wf-op wf-eq">=</span>';
+  h+='<div class="wf-chip"><span class="wf-n">'+num(terms[0].n)+'</span><span class="wf-l">'+terms[0].l+'</span></div>';
+  for(var i=1;i<terms.length;i++){
+    h+='<span class="wf-op">−</span>';
+    h+='<div class="wf-chip"><span class="wf-n">'+num(terms[i].n)+'</span><span class="wf-l">'+terms[i].l+'</span></div>';
+  }
+  h+='</div>';
+  watch.innerHTML=h;
+}
 function renderAll(){
   if(DATA_EMPTY){
     document.body.classList.add("no-data");
     return;
   }
   document.body.classList.remove("no-data");
-  var charts=["renderCollectProgress","renderFileDonut","renderFileModules","renderCasePie","renderModules","renderTable","renderSectionSubs"];
+  var charts=["renderTotalOverview","renderCollectProgress","renderFileDonut","renderFileModules","renderCasePie","renderModules","renderTable","renderSectionSubs"];
   for(var i=0;i<charts.length;i++){
     try{ window[charts[i]](); }
     catch(e){ console.error(charts[i]+" failed:",e); }

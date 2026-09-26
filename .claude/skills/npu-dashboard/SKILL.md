@@ -68,8 +68,48 @@ Run A3 *and* A5 — running one leaves the other's `DATA`/cases file as-is.
 | `--json-out` | _(none)_ | Optional: also dump the computed `DATA` to a `.json` file |
 | `--dataset`, `-d` | `A3` | Dataset key (`A3`/`A5`). Picks the injection markers (`__DATA_BEGIN__` for A3, `__DATA_A5_BEGIN__` for A5) and the cases filename (`cases.js` for A3, `cases_a5.js` for A5), so two datasets can coexist in one `index.html` |
 | `--date` | _(none)_ | Report date string stored in `DATA.date` and shown in the header/footer (e.g. `2026-09-19`) |
+| `--total` | _(none)_ | Total (总量) workbook for the top-of-page 「用例总览」 (看护策略 card). Injects `TOTAL_OVERVIEW` between `__TOTAL_BEGIN__`/`__TOTAL_END__`; omitted, the template keeps its `null` placeholder |
+| `--total-status` | `summary_report.xlsx` next to `--total` (if present) | Tracking workbook for the Total data (used to resolve the `Should Not Do` file set for the 看护策略 `社区日落用例` term) |
 
 Dependencies: `openpyxl` only (`pip3 install openpyxl`).
+
+## 用例总览 (top of page, from the Total workbook)
+
+The page opens with a fixed 「用例总览」 section fed by the **Total** (总量)
+workbook (via `--total`), independent of the A3/A5 dataset switch. It shows a single
+看护公式 card (no title/subtitle — the 看护用例 result chip sits left of `=`, then the
+four subtract terms as chips) — the reconciliation
+`看护用例 = 社区总量用例 − 社区跳过用例 − 黑名单跳过用例 − 社区日落用例`, where
+`社区总量用例` = Σ `实际运行数量` (= `all_testcases` rows),
+`社区跳过用例` = `all_testcases` rows with 执行结果 `skipped`,
+`黑名单跳过用例` = `all_testcases` rows whose `不支持` (黑名单) column is `是`, and
+`社区日落用例` = collected cases (`实际运行数量`) of files whose tracked priority is
+`Should Not Do` (sunset files, from `--total-status`). `build_total()` computes this.
+
+(The 用例分布 公共/CPU/PU1 pie-chart card was removed; `build_total()` still emits a
+`dist` field with the pre-collection split, but the frontend no longer renders it.)
+
+Below 用例总览 there are **two cards**: the 用例总览 card (a normal rounded card, `margin-bottom` for
+separation) and, below it, a single `.scenario-content` card that wraps both the 总量用例 / 社区解耦用例
+views. The two 场景 tabs (总量用例 / 社区解耦用例) are shaped as regular trapezoids (正梯形 — narrow top,
+wide bottom) and sit as a sibling row **sticking up from the top edge of the content card** (aligned to the
+card's content, overlapping its top border by 1px via a negative bottom margin). Each tab is a
+`<button class="scenario-tab">` containing an inline `<svg class="sc-tab-shape">` (a `<polyline
+vector-effect="non-scaling-stroke">` traced `0,28 10,0 90,0 100,28` — i.e. the two slanted sides plus the
+top edge) that is filled surface-card and stroked with `--border` at 1px; the polyline deliberately omits
+the bottom segment, so the slanted + top edges get a uniform 1px outline exactly like the card's border,
+while the open bottom lets the fill merge into the content card's surface — making the **selected** tab
+continuous ("一体") with the content card's outline. An **inactive** tab instead draws a separate
+`<line class="sc-tab-bottom">` along its bottom edge (hidden on `.active` via
+`.scenario-tab.active .sc-tab-bottom{display:none}`), so the unselected trapezoid is fully closed with
+the same 1px outline on all four sides. The two tabs overlap (a negative `margin-left` on `.scenario-tab + .scenario-tab` — negative flex
+`gap` is unreliable, so margin is used instead) and the active tab is layered above the inactive one
+(`z-index`); the active/inactive distinction is text
+only (active = bold primary-coloured text, inactive = grey, hover lightens the fill). The tabs are global —
+they hide/show the whole content area (the 概览 / 用例详情 / 测试文件 tabs and their views). **总量用例**
+shows a placeholder (its 概览/用例详情/测试文件 data is not yet generated); **社区解耦用例** shows the
+existing content. Client-side only (`localStorage["npu-dash-scenario"]`); selecting 社区解耦用例 re-runs
+`renderAll()` so the width-measured module bars repaint.
 
 ## Input schema (the raw workbook)
 
@@ -350,7 +390,10 @@ Check against the printed summary:
 Open `index.html` in a browser (works offline, no CDN; `cases.js` must be in the
 same folder as `index.html`). Confirm:
 
-- Overview top: 用例收集进度 card — a target-composition donut on the left (titled
+- Overview top: the 用例总览 section (a single 看护策略 card from `TOTAL_OVERVIEW`) fixed at the top
+  of the page, followed by the 总量用例/社区解耦用例 场景 tabs (正梯形页签, sticking up from the top edge
+  of the single `.scenario-content` card below, both tabs' outlines continuous with that card; global —
+  controls the 概览/用例详情/测试文件 tabs below); in the 社区解耦用例 scenario, the 用例收集进度 card — a target-composition donut on the left (titled
   `用例目标`; 公共用例 / CPU泛化用例 / PU1泛化用例 sized by share of the 目标, with the 无需泛化
   预收集 excluded and shown as a muted「不计入目标（Should Not Do）」legend entry plus a smaller
   公共/CPU/PU1 sub-breakdown; same size as the 用例执行结果分布 pie) and the 收集进度 bar on the

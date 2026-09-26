@@ -56,10 +56,13 @@ COLUMN_SPEC = {
     "npu":    {"names": ["NPU预收集", "预收集-仅NPU"], "fallback": None},
     "skip_cls":    {"names": ["skip分类"], "fallback": 5},
     "skip_reason": {"names": ["skip原因"], "fallback": 6},
+    "unsupported": {"names": ["不支持"], "fallback": None},
 }
 
 DATA_BEGIN = "/*__DATA_BEGIN__*/"
 DATA_END = "/*__DATA_END__*/"
+TOTAL_BEGIN = "/*__TOTAL_BEGIN__*/"
+TOTAL_END = "/*__TOTAL_END__*/"
 
 
 def data_markers(dataset):
@@ -81,6 +84,19 @@ def _find_column(headers, spec):
         if h is not None and str(h).strip() in spec["names"]:
             return i
     return spec["fallback"]
+
+
+def _precollect_names(dataset):
+    """Pre-collection column names for a dataset. The 2026-09-23 export split the
+    pre-collection counts into per-dataset columns (``A3-公共用例`` / ``A3-仅CPU`` /
+    ``A3-仅NPU`` and the A5 equivalents); older exports carried a single set
+    (``预收集-公共用例`` / ``预收集-仅CPU`` / ``预收集-仅NPU``)."""
+    p = dataset + "-"
+    return {
+        "pub": [p + "公共用例", "预收集-公共用例"],
+        "cpu": [p + "仅CPU", "CPU预收集", "预收集-仅CPU"],
+        "npu": [p + "仅NPU", "NPU预收集", "预收集-仅NPU"],
+    }
 
 
 def _cell(row, idx):
@@ -112,7 +128,7 @@ def _canonical_module(name):
     return name
 
 
-def build(path, blacklist_path=None):
+def build(path, blacklist_path=None, dataset="A3"):
     """One pass over the workbook -> (aggregate DATA dict, per-case detail tree,
     flat file list)."""
     # NOTE: not read_only — this workbook reports broken dimension metadata in
@@ -120,7 +136,7 @@ def build(path, blacklist_path=None):
     wb = openpyxl.load_workbook(path, data_only=True)
     sheet_names = {ws.title for ws in wb.worksheets}
     if "all_files" in sheet_names and "all_testcases" in sheet_names:
-        return build_two_tier(wb, blacklist_path)
+        return build_two_tier(wb, blacklist_path, dataset)
     return build_legacy(wb)
 
 
@@ -244,7 +260,90 @@ def load_status(path):
     return track
 
 
-def build_two_tier(wb, blacklist_path=None):
+def build_total(path, status_path=None):
+    """Read the *Total* (总量) workbook and compute the top-of-overview
+    「用例总览」 numbers: the 公共/CPU/PU1 case distribution (pre-collection
+    columns on ``all_files``) and the 看护策略 breakdown
+    ``看护用例 = 社区总量用例 − 社区跳过用例 − 黑名单跳过用例 − 社区日落用例``.
+
+    ``社区总量用例`` is the sum of ``实际运行数量`` (== ``all_testcases`` rows);
+    ``社区跳过用例`` counts ``all_testcases`` rows whose 执行结果 is ``skipped``;
+    ``黑名单跳过用例`` counts ``all_testcases`` rows whose ``不支持`` (黑名单) column is
+    set (``是``) — the NPU-unsupported cases; ``社区日落用例`` is the
+    collected total (``实际运行数量``) of files whose tracked priority is
+    ``Should Not Do`` (sunset files; 0 unless a tracking workbook is supplied)."""
+    wb = openpyxl.load_workbook(path, data_only=True)
+
+    ws = wb["all_files"]
+    rows = ws.iter_rows(values_only=True)
+    header = next(rows, None)
+    col_file = _find_column(header, COLUMN_SPEC["file"])
+    col_num = _find_column(header, COLUMN_SPEC["num"])
+    pre = _precollect_names("A3")
+    col_pub = _find_column(header, {"names": pre["pub"], "fallback": None})
+    col_cpu = _find_column(header, {"names": pre["cpu"], "fallback": None})
+    col_npu = _find_column(header, {"names": pre["npu"], "fallback": None})
+
+    dist = {"pub": 0, "cpu": 0, "npu": 0}
+    collected = 0
+    file_num = {}
+    file_pre = {}
+    for row in rows:
+        f = _cell(row, col_file)
+        if not f:
+            continue
+        pub = _to_int(_cell(row, col_pub))
+        cpu = _to_int(_cell(row, col_cpu))
+        npu = _to_int(_cell(row, col_npu))
+        num = _to_int(_cell(row, col_num))
+        dist["pub"] += pub
+        dist["cpu"] += cpu
+        dist["npu"] += npu
+        collected += num
+        file_num[f] = num
+        file_pre[f] = pub + cpu + npu
+
+    # 社区跳过用例 = skipped rows in all_testcases;
+    # 黑名单跳过用例 = rows in all_testcases whose 不支持(黑名单) is set (unsupported)
+    community_skip = 0
+    blocklist = 0
+    sheet_names = {ws.title for ws in wb.worksheets}
+    if "all_testcases" in sheet_names:
+        ws = wb["all_testcases"]
+        rows = ws.iter_rows(values_only=True)
+        header = next(rows, None)
+        col_result = _find_column(header, COLUMN_SPEC["result"])
+        col_unsupported = _find_column(header, COLUMN_SPEC["unsupported"])
+        for row in rows:
+            if (_cell(row, col_result) or "").lower() == "skipped":
+                community_skip += 1
+            if _cell(row, col_unsupported):
+                blocklist += 1
+
+    # 社区日落用例 = collected cases (实际运行数量) of files whose tracked priority
+    # is "Should Not Do" (sunset files). Every Should Not Do file is sunset, so its
+    # actually-collected cases are subtracted from the watch total.
+    snd = 0
+    if status_path:
+        track = load_status(status_path)
+        for f, num in file_num.items():
+            if track.get(f, ("", "", ""))[1] == "Should Not Do":
+                snd += num
+
+    watch = collected - community_skip - blocklist - snd
+    return {
+        "dist": dist,
+        "watch": {
+            "collected": collected,
+            "community_skip": community_skip,
+            "blocklist": blocklist,
+            "snd": snd,
+            "result": watch,
+        },
+    }
+
+
+def build_two_tier(wb, blacklist_path=None, dataset="A3"):
     """New schema: a dedicated ``all_files`` sheet (one row per file, ``num`` /
     ``实际运行数量`` = matched case count) plus an ``all_testcases`` sheet (one row
     per case).
@@ -292,9 +391,10 @@ def build_two_tier(wb, blacklist_path=None):
     col_cls = _find_column(header, COLUMN_SPEC["class"])
     col_file = _find_column(header, COLUMN_SPEC["file"])
     col_num = _find_column(header, COLUMN_SPEC["num"])
-    col_pub = _find_column(header, COLUMN_SPEC["pub"])
-    col_cpu = _find_column(header, COLUMN_SPEC["cpu"])
-    col_npu = _find_column(header, COLUMN_SPEC["npu"])
+    pre = _precollect_names(dataset)
+    col_pub = _find_column(header, {"names": pre["pub"], "fallback": None})
+    col_cpu = _find_column(header, {"names": pre["cpu"], "fallback": None})
+    col_npu = _find_column(header, {"names": pre["npu"], "fallback": None})
 
     file_module = {}
     file_gen = {}
@@ -605,6 +705,10 @@ def main(argv=None):
                    help="Dataset key (A3/A5) — picks the injection markers and cases filename (default: A3)")
     p.add_argument("--date", default=None,
                    help="Report date string stored in DATA.date, shown in the header/footer (e.g. 2026-09-19)")
+    p.add_argument("--total", default=None,
+                   help="Total (总量) workbook for the top 用例总览 (default: none)")
+    p.add_argument("--total-status", default=None,
+                   help="Tracking workbook for the Total (总量) data (default: summary_report.xlsx next to --total)")
     args = p.parse_args(argv)
     args.dataset = args.dataset.upper()
 
@@ -622,7 +726,16 @@ def main(argv=None):
                 status_path = cand
                 break
 
-    data, detail, file_list = build(args.input, blacklist)
+    total_status = args.total_status
+    if args.total and total_status is None:
+        d = os.path.dirname(args.total) or "."
+        for name in ("summary_report.xlsx", "status_tracking.xlsx"):
+            cand = os.path.join(d, name)
+            if os.path.exists(cand):
+                total_status = cand
+                break
+
+    data, detail, file_list = build(args.input, blacklist, args.dataset)
 
     # Attach the tracked status/priority/assignee (if any) to each file list
     # entry, as 5th/6th/7th elements, and keep the pre-collection counts
@@ -657,6 +770,16 @@ def main(argv=None):
         html = f.read()
     html = inject(html, begin, end,
                   "\n" + json.dumps(data, ensure_ascii=False, indent=2) + "\n  ")
+
+    # Total (总量) overview — inject only when --total is supplied (the template
+    # carries a null placeholder between the TOTAL markers otherwise).
+    if args.total:
+        total_data = build_total(args.total, total_status)
+        if args.date:
+            total_data["date"] = args.date
+        html = inject(html, TOTAL_BEGIN, TOTAL_END,
+                      "\n" + json.dumps(total_data, ensure_ascii=False, indent=2) + "\n  ")
+
     with open(args.output, "w", encoding="utf-8") as f:
         f.write(html)
 
