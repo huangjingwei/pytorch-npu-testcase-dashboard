@@ -27,11 +27,12 @@ python3 .claude/skills/npu-dashboard/scripts/generate_dashboard.py \
     --input new_sample.xlsx --output index.html
 ```
 
-## A3 / A5 switch (two datasets, one dashboard)
+## Datasets & scenario switch (A3 / A5 / TOTAL, one dashboard)
 
-`index.html` carries two aggregate `DATA` objects inline — `DATA_A3` and
-`DATA_A5` — plus the case detail files `cases.js` (A3) and `cases_a5.js` (A5),
-each setting the same `window.CASES` / `window.FILES` globals. A header
+`index.html` carries up to three aggregate `DATA` objects inline — `DATA_A3`,
+`DATA_A5` and `DATA_TOTAL` — plus the case detail files `cases.js` (A3),
+`cases_a5.js` (A5) and `cases_total.js` (TOTAL), each setting the same
+`window.CASES` / `window.FILES` globals. A header
 segmented control (A3 报告 / A5 报告) swaps reports: it stores the choice in
 `localStorage` + a `?dataset=` URL param and reloads the page. On load a small
 bootstrap script reads that choice and `document.write`s the matching
@@ -39,17 +40,26 @@ bootstrap script reads that choice and `document.write`s the matching
 detail file is parsed. The rendering code is otherwise unchanged — it always
 reads the fixed names `DATA` / `window.CASES` / `window.FILES`.
 
-Regenerate **both** datasets (A3 and A5) whenever a new sample lands:
+Regenerate **both** community-decoupling datasets (A3 and A5) plus the Total
+总量 scenario whenever a new sample lands:
 
 ```bash
 python3 .claude/skills/npu-dashboard/scripts/generate_dashboard.py \
-    --input <a3>/all_testcases.xlsx --output index.html --dataset A3 --date 2026-09-19
+    --input <a3>/all_testcases.xlsx --output index.html --dataset A3 --date 2026-09-26 \
+    --total <total>/all_testcases.xlsx --total-date 2026-09-23
 python3 .claude/skills/npu-dashboard/scripts/generate_dashboard.py \
-    --input <a5>/all_testcases.xlsx --output index.html --dataset A5 --date 2026-09-20
+    --input <a5>/all_testcases.xlsx --output index.html --dataset A5 --date 2026-09-26
 ```
 
-Run A3 *and* A5 — running one leaves the other's `DATA`/cases file as-is.
-`DATA.date`/`DATA.dataset` feed the header subtitle and footer.
+Run A3 (with `--total`) *and* A5 — running one leaves the other's `DATA`/cases
+file as-is. `DATA.date`/`DATA.dataset` feed the header subtitle and footer.
+
+> **Default dataset is `TOTAL` (总量用例).** The bootstrap falls back to
+> `TOTAL` when there is no `?dataset=` URL param and no stored
+> `localStorage.npu-dash-dataset` preference (and maps any unrecognised value
+> to `TOTAL`). The two 场景 tabs are the primary navigation: 总量用例 (default)
+> → `?dataset=TOTAL`, 解耦用例 → `?dataset=A3`. The header A3/A5 报告 toggle is
+> a secondary switch scoped to the community-decoupling scenario.
 
 > As of 2026-09 the A5 switch is kept but blanked: `DATA_A5` is `null` and
 > `cases_a5.js` holds only `window.CASES={};window.FILES=[];`. The shell's
@@ -66,7 +76,7 @@ Run A3 *and* A5 — running one leaves the other's `DATA`/cases file as-is.
 | `--blacklist`, `-b` | `blacklist_testcases.xlsx` next to `--input` (if present) | Blacklist workbook; folds blacklisted cases into the case totals |
 | `--status`, `-s` | `status_tracking.xlsx` or `summary_report.xlsx` next to `--input` (if present) | Tracking workbook (one sheet per module); attaches a status tag (`Done`/`Todo`/`In Progress`/`Backlog`, read from `Status` or `社区status`), a priority tag (`High`/`Medium`/`Low`/`Should Not Do`, from `Priority`), and the assignee (from `Assignee` or `author`) to each file in the 测试文件 tab |
 | `--json-out` | _(none)_ | Optional: also dump the computed `DATA` to a `.json` file |
-| `--dataset`, `-d` | `A3` | Dataset key (`A3`/`A5`). Picks the injection markers (`__DATA_BEGIN__` for A3, `__DATA_A5_BEGIN__` for A5) and the cases filename (`cases.js` for A3, `cases_a5.js` for A5), so two datasets can coexist in one `index.html` |
+| `--dataset`, `-d` | `A3` | Dataset key for the community-decoupling report (`A3`/`A5`). Picks the injection markers (`__DATA_BEGIN__` for A3, `__DATA_A5_BEGIN__` for A5) and the cases filename (`cases.js` for A3, `cases_a5.js` for A5), so both reports can coexist in one `index.html` (the TOTAL 总量 scenario is generated via `--total`, not this flag) |
 | `--date` | _(none)_ | Report date string stored in `DATA.date` and shown in the header/footer (e.g. `2026-09-19`) |
 | `--total` | _(none)_ | Total (总量) workbook. Generates **both** the top-of-page 「用例总览」 看护策略 card (`TOTAL_OVERVIEW`, injected between `__TOTAL_BEGIN__`/`__TOTAL_END__`) **and** the full 总量用例 scenario — `DATA_TOTAL` (between `__DATA_TOTAL_BEGIN__`/`__DATA_TOTAL_END__`) plus `cases_total.js` (`window.CASES`/`window.FILES`). Omitted, the template keeps its `null` placeholders |
 | `--total-status` | `summary_report.xlsx` next to `--total` (if present) | Tracking workbook for the Total data. Resolves `Should Not Do` (Priority) into the SND 文件集合: their cases are excluded from the 总量用例 scenario's case counts **and** from the 看护策略 `社区跳过用例`/`黑名单跳过用例` terms (so `目标看护用例` == `passed+failed+timeout+error`); also attaches status/priority/assignee to the 总量用例 测试文件 tab |
@@ -142,7 +152,8 @@ the same 1px outline on all four sides. The two tabs overlap (a negative `margin
 `gap` is unreliable, so margin is used instead) and the active tab is layered above the inactive one
 (`z-index`); the active/inactive distinction is text
 only (active = bold primary-coloured text, inactive = grey, hover lightens the fill). The tabs are global —
-they switch the **dataset** and reload the page: **总量用例** → `?dataset=TOTAL` (loads `cases_total.js`),
+they switch the **dataset** and reload the page: **总量用例** (the default when no `?dataset=` /
+`localStorage` preference is set) → `?dataset=TOTAL` (loads `cases_total.js`),
 **解耦用例** → `?dataset=A3` (loads `cases.js`; `A5` remains a community-decoupling variant behind the
 header A3/A5 toggle). The 概览 / 用例详情 / 测试文件 views are a single shared DOM that re-renders against
 the active dataset's `DATA` / `window.CASES` / `window.FILES`. The **用例解耦进度** card renders only for
@@ -291,15 +302,18 @@ The output is **two files** that sit side by side and work fully offline:
 
 - **`index.html`** — the dashboard shell: all CSS/HTML/JS plus the small
   aggregate `DATA` objects, injected inline between one marker pair per dataset
-  (`DATA_A3` and `DATA_A5`; see the A3/A5 switch section above):
+  (`DATA_A3`, `DATA_A5` and `DATA_TOTAL`; see the datasets/scenario switch
+  section above):
 
   ```js
-  const DATA_A3 = /*__DATA_BEGIN__*/     { ...aggregate... } /*__DATA_END__*/;
-  const DATA_A5 = /*__DATA_A5_BEGIN__*/  { ...aggregate... } /*__DATA_A5_END__*/;
-  const DATA   = (window.__DASH_DATASET__ === "A5") ? DATA_A5 : DATA_A3;
+  const DATA_A3    = /*__DATA_BEGIN__*/        { ...aggregate... } /*__DATA_END__*/;
+  const DATA_A5    = /*__DATA_A5_BEGIN__*/     { ...aggregate... } /*__DATA_A5_END__*/;
+  const DATA_TOTAL = /*__DATA_TOTAL_BEGIN__*/  { ...aggregate... } /*__DATA_TOTAL_END__*/;
+  const DATA   = (window.__DASH_DATASET__ === "A5") ? DATA_A5
+               : (window.__DASH_DATASET__ === "TOTAL") ? DATA_TOTAL : DATA_A3;
   ```
 
-- **`cases.js`** / **`cases_a5.js`** — the bulky per-case detail tree, written as a single
+- **`cases.js`** / **`cases_a5.js`** / **`cases_total.js`** — the bulky per-case detail tree, written as a single
   `window.CASES = { ... }` assignment and loaded by the shell via
   `<script src="cases.js"></script>`. Its shape is
   `module -> file -> [[nodeid_suffix, result], ...]`; the nodeid's file prefix is

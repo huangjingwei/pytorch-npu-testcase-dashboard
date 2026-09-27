@@ -388,7 +388,7 @@ body.no-data #empty-state{display:flex}
     </div>
     <div class="header-right">
       <div class="ds-toggle" role="radiogroup" aria-label="报告切换">
-        <button id="btn-a3" role="radio" aria-checked="true" class="active">A3 报告</button>
+        <button id="btn-a3" role="radio" aria-checked="false">A3 报告</button>
         <button id="btn-a5" role="radio" aria-checked="false">A5 报告</button>
       </div>
       <div class="theme-toggle" role="radiogroup" aria-label="主题切换">
@@ -593,15 +593,15 @@ body.no-data #empty-state{display:flex}
 </div>
 
 <script>
-// Bootstrap: pick the active dataset (URL ?dataset= or localStorage, default A3)
+// Bootstrap: pick the active dataset (URL ?dataset= or localStorage, default TOTAL 总量用例)
 // and synchronously load the matching cases file before the app below runs.
 (function () {
   var p = null;
   try { p = new URLSearchParams(location.search).get("dataset"); } catch (e) { p = null; }
   var stored = null;
   try { stored = localStorage.getItem("npu-dash-dataset"); } catch (e) { stored = null; }
-  var ds = (p || stored || "A3").toUpperCase();
-  if (ds !== "A3" && ds !== "A5" && ds !== "TOTAL") ds = "A3";
+  var ds = (p || stored || "TOTAL").toUpperCase();
+  if (ds !== "A3" && ds !== "A5" && ds !== "TOTAL") ds = "TOTAL";
   window.__DASH_DATASET__ = ds;
   var file = (ds === "A5") ? "cases_a5.js" : (ds === "TOTAL") ? "cases_total.js" : "cases.js";
   document.write('<script src="' + file + '"><\/script>');
@@ -1033,7 +1033,7 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches) setTheme("dark");
 // matching cases file for the active dataset, so a switch is a clean page load.
 // ================================================================
 function setupDatasetSwitch(){
-  const cur=window.__DASH_DATASET__||"A3";
+  const cur=window.__DASH_DATASET__||"TOTAL";
   const btnA3=document.getElementById("btn-a3"), btnA5=document.getElementById("btn-a5");
   function paint(){
     btnA3.classList.toggle("active",cur==="A3"); btnA5.classList.toggle("active",cur==="A5");
@@ -1067,7 +1067,7 @@ setupDatasetSwitch();
 function setupScenarioSwitch(){
   const totalBtn=document.getElementById("scn-total"), decBtn=document.getElementById("scn-decouple");
   if(!totalBtn||!decBtn) return;
-  const ds=window.__DASH_DATASET__||"A3";
+  const ds=window.__DASH_DATASET__||"TOTAL";
   function paint(){
     const isTotal=(ds==="TOTAL");
     totalBtn.classList.toggle("active",isTotal);
