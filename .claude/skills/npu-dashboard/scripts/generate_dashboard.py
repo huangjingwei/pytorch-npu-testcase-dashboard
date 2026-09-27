@@ -90,8 +90,13 @@ def _precollect_names(dataset):
     """Pre-collection column names for a dataset. The 2026-09-23 export split the
     pre-collection counts into per-dataset columns (``A3-公共用例`` / ``A3-仅CPU`` /
     ``A3-仅NPU`` and the A5 equivalents); older exports carried a single set
-    (``预收集-公共用例`` / ``预收集-仅CPU`` / ``预收集-仅NPU``)."""
-    p = dataset + "-"
+    (``预收集-公共用例`` / ``预收集-仅CPU`` / ``预收集-仅NPU``).
+
+    The ``TOTAL`` (总量) workbook carries the *same* ``A3-…`` pre-collection
+    columns as the A3 report (there is no ``TOTAL-…`` set), so ``TOTAL`` resolves
+    to the A3 column names rather than a non-existent ``TOTAL-…`` prefix."""
+    key = "A3" if dataset == "TOTAL" else dataset
+    p = key + "-"
     return {
         "pub": [p + "公共用例", "预收集-公共用例"],
         "cpu": [p + "仅CPU", "CPU预收集", "预收集-仅CPU"],
@@ -128,15 +133,22 @@ def _canonical_module(name):
     return name
 
 
-def build(path, blacklist_path=None, dataset="A3"):
+def build(path, blacklist_path=None, dataset="A3", unsupported_to_blacklist=False,
+          exclude_files=None):
     """One pass over the workbook -> (aggregate DATA dict, per-case detail tree,
-    flat file list)."""
+    flat file list).
+
+    ``exclude_files`` is an optional set of file paths whose *cases* are dropped
+    from the case-level aggregation (case totals, per-module counts and the detail
+    tree). The 总量 (TOTAL) build passes the ``Should Not Do`` file set here so the
+    scenario's case statistics match the top 「用例总览」 社区总量用例 figure."""
     # NOTE: not read_only — this workbook reports broken dimension metadata in
     # read-only mode (max_row=1), which would silently truncate iteration.
     wb = openpyxl.load_workbook(path, data_only=True)
     sheet_names = {ws.title for ws in wb.worksheets}
     if "all_files" in sheet_names and "all_testcases" in sheet_names:
-        return build_two_tier(wb, blacklist_path, dataset)
+        return build_two_tier(wb, blacklist_path, dataset, unsupported_to_blacklist,
+                              exclude_files)
     return build_legacy(wb)
 
 
@@ -263,15 +275,29 @@ def load_status(path):
 def build_total(path, status_path=None):
     """Read the *Total* (总量) workbook and compute the top-of-overview
     「用例总览」 numbers: the 公共/CPU/PU1 case distribution (pre-collection
-    columns on ``all_files``) and the 看护策略 breakdown
-    ``看护用例 = 社区总量用例 − 社区跳过用例 − 黑名单跳过用例 − 社区日落用例``.
+    columns on ``all_files``) and the 看护策略 breakdown, rendered by the
+    frontend as a two-row grid — ``收集用例 − 社区日落用例 = 社区总量用例``
+    (top row) and ``社区总量用例 − 社区跳过用例 − 黑名单跳过用例 =
+    目标看护用例`` (bottom row) — with ``社区总量用例`` and ``目标看护用例``
+    as tall boxes spanning both rows, their numbers larger and bold
+    (``.wf-chip.wf-tall .wf-n`` → 1.5rem/700), while the three term chips
+    (``社区日落用例`` / ``社区跳过用例`` / ``黑名单跳过用例``) are
+    de-emphasized as smaller grey ``.wf-muted`` chips (``收集用例`` stays at
+    the default dark style — number and label — as the source total).
 
-    ``社区总量用例`` is the sum of ``实际运行数量`` (== ``all_testcases`` rows);
+    ``收集用例`` (原社区总量用例) is the sum of ``实际运行数量`` (== ``all_testcases``
+    rows); the frontend derives ``社区总量用例`` as ``收集用例 − 社区日落用例``.
     ``社区跳过用例`` counts ``all_testcases`` rows whose 执行结果 is ``skipped``;
     ``黑名单跳过用例`` counts ``all_testcases`` rows whose ``不支持`` (黑名单) column is
     set (``是``) — the NPU-unsupported cases; ``社区日落用例`` is the
     collected total (``实际运行数量``) of files whose tracked priority is
-    ``Should Not Do`` (sunset files; 0 unless a tracking workbook is supplied)."""
+    ``Should Not Do`` (sunset files; 0 unless a tracking workbook is supplied).
+
+    ``社区日落用例`` files' rows are *also* excluded from ``社区跳过用例`` and
+    ``黑名单跳过用例``, so the resulting ``目标看护用例`` reconciles exactly with
+    the scenario's SND-excluded 用例执行结果分布 (``passed + failed + error``);
+    otherwise the SND cases that are themselves skipped/unsupported would be
+    subtracted twice (once via these chips, once via ``社区日落用例``)."""
     wb = openpyxl.load_workbook(path, data_only=True)
 
     ws = wb["all_files"]
@@ -303,8 +329,25 @@ def build_total(path, status_path=None):
         file_num[f] = num
         file_pre[f] = pub + cpu + npu
 
+    # 社区日落用例 = collected cases (实际运行数量) of files whose tracked priority
+    # is "Should Not Do" (sunset files). Every Should Not Do file is sunset, so its
+    # actually-collected cases are subtracted from the watch total. Its file paths
+    # are kept so the 社区跳过/黑名单 loops below can skip their rows — otherwise
+    # the SND cases that are themselves skipped/unsupported would be double-subtracted.
+    snd = 0
+    snd_files = set()
+    if status_path:
+        track = load_status(status_path)
+        for f, num in file_num.items():
+            if track.get(f, ("", "", ""))[1] == "Should Not Do":
+                snd_files.add(f)
+                snd += num
+
     # 社区跳过用例 = skipped rows in all_testcases;
-    # 黑名单跳过用例 = rows in all_testcases whose 不支持(黑名单) is set (unsupported)
+    # 黑名单跳过用例 = rows in all_testcases whose 不支持(黑名单) is set (unsupported).
+    # Should Not Do 文件（社区日落用例）的用例已在上方按 实际运行数量 全额从 snd
+    # 扣除，这里跳过其行，使「目标看护用例」与场景内剔除 SND 后的用例执行结果分布
+    # （passed + failed + error）严格对齐。
     community_skip = 0
     blocklist = 0
     sheet_names = {ws.title for ws in wb.worksheets}
@@ -312,23 +355,16 @@ def build_total(path, status_path=None):
         ws = wb["all_testcases"]
         rows = ws.iter_rows(values_only=True)
         header = next(rows, None)
+        col_file = _find_column(header, COLUMN_SPEC["file"])
         col_result = _find_column(header, COLUMN_SPEC["result"])
         col_unsupported = _find_column(header, COLUMN_SPEC["unsupported"])
         for row in rows:
+            if snd_files and _cell(row, col_file) in snd_files:
+                continue
             if (_cell(row, col_result) or "").lower() == "skipped":
                 community_skip += 1
             if _cell(row, col_unsupported):
                 blocklist += 1
-
-    # 社区日落用例 = collected cases (实际运行数量) of files whose tracked priority
-    # is "Should Not Do" (sunset files). Every Should Not Do file is sunset, so its
-    # actually-collected cases are subtracted from the watch total.
-    snd = 0
-    if status_path:
-        track = load_status(status_path)
-        for f, num in file_num.items():
-            if track.get(f, ("", "", ""))[1] == "Should Not Do":
-                snd += num
 
     watch = collected - community_skip - blocklist - snd
     return {
@@ -343,7 +379,8 @@ def build_total(path, status_path=None):
     }
 
 
-def build_two_tier(wb, blacklist_path=None, dataset="A3"):
+def build_two_tier(wb, blacklist_path=None, dataset="A3", unsupported_to_blacklist=False,
+                   exclude_files=None):
     """New schema: a dedicated ``all_files`` sheet (one row per file, ``num`` /
     ``实际运行数量`` = matched case count) plus an ``all_testcases`` sheet (one row
     per case).
@@ -351,7 +388,19 @@ def build_two_tier(wb, blacklist_path=None, dataset="A3"):
     The module key is the ``sheet`` column on ``all_files`` (present in the
     current export: Core / Distributed / … / Utils / Tensor). When that column is
     absent (older exports) we fall back to the ``Classification -> sheet`` map
-    built from the per-module case sheets."""
+    built from the per-module case sheets.
+
+    ``unsupported_to_blacklist`` reclassifies ``all_testcases`` rows whose
+    ``不支持`` (黑名单) column is set as ``blacklist_unsupported`` instead of their
+    raw result. The 全量 (TOTAL) report encodes NPU-unsupported cases inline this
+    way (its ``黑名单跳过`` sheet is empty), so only the TOTAL build sets this flag;
+    the community-decoupling (A3/A5) reports keep their separate blacklist sheet
+    handling untouched.
+
+    ``exclude_files`` (a set of file paths) drops those files' cases from the
+    case-level aggregation entirely — used by the TOTAL build to exclude the
+    ``Should Not Do`` files' cases (社区日落用例) so the scenario's case counts
+    match the top 「用例总览」 社区总量用例 figure."""
     all_files = set()
     all_gen_files = set()
     case_totals = Counter()
@@ -444,6 +493,7 @@ def build_two_tier(wb, blacklist_path=None, dataset="A3"):
     col_file = _find_column(header, COLUMN_SPEC["file"])
     col_nodeid = _find_column(header, COLUMN_SPEC["nodeid"])
     col_result = _find_column(header, COLUMN_SPEC["result"])
+    col_unsupported = _find_column(header, COLUMN_SPEC["unsupported"])
 
     module_cases = defaultdict(Counter)
     module_file_cases = defaultdict(Counter)
@@ -456,12 +506,20 @@ def build_two_tier(wb, blacklist_path=None, dataset="A3"):
         result = _cell(row, col_result)
         if not nodeid:
             continue
+        if exclude_files and f in exclude_files:
+            # 总量报告：剔除 Should Not Do 文件对应用例（社区日落用例），
+            # 使场景内各用例数量统计与顶部「社区总量用例」口径一致。
+            continue
         # The file -> module map (from all_files) is authoritative; fall back to
         # the Classification -> sheet map for files it does not know.
         module = (file_module.get(f)
                   or (cls_to_sheet.get(cls, cls) if cls else "Other"))
         result = (result or "error").lower()
-        if result not in STATUS_KEYS:
+        if unsupported_to_blacklist and _cell(row, col_unsupported):
+            # 全量报告：NPU 不支持（黑名单）用例内联在 all_testcases，标记为
+            # blacklist_unsupported，与社区解耦报告的独立黑名单 sheet 口径一致。
+            result = "blacklist_unsupported"
+        elif result not in STATUS_KEYS:
             sys.stderr.write(f"[warn] all_testcases: unknown result "
                              f"{result!r} -> error\n")
             result = "error"
@@ -497,6 +555,8 @@ def build_two_tier(wb, blacklist_path=None, dataset="A3"):
     if not blacklist_entries and blacklist_path:
         blacklist_entries = load_blacklist(blacklist_path, file_module)
     for module, f, suffix, result, skip_cls, skip_reason in blacklist_entries:
+        if exclude_files and f in exclude_files:
+            continue
         blacklist_total += 1
         if skip_cls and skip_cls not in skip_cls_seen[result]:
             skip_cls_seen[result].add(skip_cls)
@@ -688,6 +748,49 @@ def inject(html, begin, end, body):
     return html[:start] + begin + body + end + html[stop + len(end):]
 
 
+def attach_status_and_fold(data, file_list, status_path):
+    """Attach tracked status/priority/assignee (5th/6th/7th elements) and the
+    pre-collection counts (8th/9th/10th) to each file list entry, then fold
+    "Should Not Do" (无需泛化) files out of the 未泛化 bucket so the file-level
+    charts can show them as a distinct third category."""
+    track = load_status(status_path) if status_path else {}
+    file_list = [[m, f, g, num] + list(track.get(f, ("", "", ""))) + [cpu, npu, pub]
+                 for m, f, g, num, cpu, npu, pub in file_list]
+    snd_by_module = defaultdict(int)
+    gen_by_module = defaultdict(int)      # 已泛化 = gen 且非 Should Not Do（Should Not Do 单独一类）
+    na_by_module = defaultdict(int)       # 未泛化 = 有预收集用例但尚未收集（需泛化）
+    nocase_by_module = defaultdict(int)   # 无用例文件 = 既无收集也无预收集用例（不计入泛化率）
+    module_target = defaultdict(int)      # 收集目标 = 各模块 公共+CPU+NPU 预收集之和（总量用例口径）
+    module_snd_target = defaultdict(int)  # 其中 Should Not Do 文件的预收集份额（淡蓝）
+    for m, f, g, num, status, priority, assignee, cpu, npu, pub in file_list:
+        pre = (cpu or 0) + (npu or 0) + (pub or 0)
+        module_target[m] += pre
+        if priority == "Should Not Do":
+            module_snd_target[m] += pre
+            snd_by_module[m] += 1          # 所有 Should Not Do 文件，无论是否已泛化
+        elif g == 1:
+            gen_by_module[m] += 1          # 已泛化 = gen 且非 Should Not Do
+        elif pre > 0:
+            na_by_module[m] += 1           # 未泛化 = 有预收集用例但尚未收集
+        else:
+            nocase_by_module[m] += 1       # 无用例文件 = 无收集也无预收集用例
+    data["files_snd"] = sum(snd_by_module.values())
+    data["files_gen"] = sum(gen_by_module.values())
+    data["files_na"] = sum(na_by_module.values())
+    data["files_nocase"] = sum(nocase_by_module.values())
+    # 泛化率只统计 已泛化 + 未泛化（不含 无用例文件 / Should Not Do）
+    gen_na = data["files_gen"] + data["files_na"]
+    data["files_gen_rate"] = round(data["files_gen"] / gen_na * 100, 1) if gen_na else 0.0
+    data["module_target"] = dict(module_target)
+    data["module_snd_target"] = dict(module_snd_target)
+    for name, sh in data["sheets"].items():
+        sh["snd_files"] = snd_by_module.get(name, 0)
+        sh["gen_files"] = gen_by_module.get(name, 0)
+        sh["na_files"] = na_by_module.get(name, 0)
+        sh["nocase_files"] = nocase_by_module.get(name, 0)
+    return data, file_list
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description="Regenerate the NPU test dashboard.")
     p.add_argument("--input", "-i", default="all_testcases.xlsx",
@@ -709,6 +812,8 @@ def main(argv=None):
                    help="Total (总量) workbook for the top 用例总览 (default: none)")
     p.add_argument("--total-status", default=None,
                    help="Tracking workbook for the Total (总量) data (default: summary_report.xlsx next to --total)")
+    p.add_argument("--total-date", default=None,
+                   help="Report date for the Total (总量) scenario DATA_TOTAL.date / TOTAL_OVERVIEW.date (default: --date)")
     args = p.parse_args(argv)
     args.dataset = args.dataset.upper()
 
@@ -740,26 +845,9 @@ def main(argv=None):
     # Attach the tracked status/priority/assignee (if any) to each file list
     # entry, as 5th/6th/7th elements, and keep the pre-collection counts
     # (cpu/npu/pub from all_files) as the final 8th/9th/10th. Files absent from
-    # the tracking sheet carry "" for each (untracked).
-    track = load_status(status_path) if status_path else {}
-    file_list = [[m, f, g, num] + list(track.get(f, ("", "", ""))) + [cpu, npu, pub]
-                 for m, f, g, num, cpu, npu, pub in file_list]
-
-    # "Should Not Do" (无需泛化) files: ungeneralized files whose priority marks
-    # them as not needing generalization. Fold them out of the 未泛化 bucket so the
-    # file-level charts can show them as a distinct third category.
-    snd_by_module = defaultdict(int)
-    for m, f, g, num, status, priority, assignee, cpu, npu, pub in file_list:
-        if g == 0 and priority == "Should Not Do":
-            snd_by_module[m] += 1
-    data["files_snd"] = sum(snd_by_module.values())
-    data["files_na"] = data["files_total"] - data["files_gen"] - data["files_snd"]
-    # 泛化率只统计 已泛化 + 未泛化（不含 无需泛化）
-    gen_na = data["files_gen"] + data["files_na"]
-    data["files_gen_rate"] = round(data["files_gen"] / gen_na * 100, 1) if gen_na else 0.0
-    for name, sh in data["sheets"].items():
-        sh["snd_files"] = snd_by_module.get(name, 0)
-        sh["na_files"] = sh["files"] - sh["gen_files"] - sh["snd_files"]
+    # the tracking sheet carry "" for each (untracked). Also folds "Should Not Do"
+    # files out of the 未泛化 bucket.
+    data, file_list = attach_status_and_fold(data, file_list, status_path)
 
     if args.date:
         data["date"] = args.date
@@ -771,14 +859,53 @@ def main(argv=None):
     html = inject(html, begin, end,
                   "\n" + json.dumps(data, ensure_ascii=False, indent=2) + "\n  ")
 
-    # Total (总量) overview — inject only when --total is supplied (the template
-    # carries a null placeholder between the TOTAL markers otherwise).
+    # Total (总量) — when --total is supplied, generate BOTH the top-of-overview
+    # 「用例总览」 formula card (TOTAL_OVERVIEW) and the full 总量用例 scenario
+    # (DATA_TOTAL + cases_total.js), mirroring the community-decoupling dataset.
     if args.total:
         total_data = build_total(args.total, total_status)
-        if args.date:
-            total_data["date"] = args.date
+        total_date = args.total_date or args.date
+        if total_date:
+            total_data["date"] = total_date
         html = inject(html, TOTAL_BEGIN, TOTAL_END,
                       "\n" + json.dumps(total_data, ensure_ascii=False, indent=2) + "\n  ")
+
+        # Should Not Do (无需泛化/废弃) 文件：其优先级为 "Should Not Do"，对应
+        # 用例需从总量场景的各用例数量统计中剔除（社区日落用例），与顶部用例总览口径一致。
+        total_track = load_status(total_status) if total_status else {}
+        snd_files = {f for f, (st, pr, asg) in total_track.items() if pr == "Should Not Do"}
+        tdata, tdetail, tfile_list = build(args.total, None, "TOTAL",
+                                           unsupported_to_blacklist=True,
+                                           exclude_files=snd_files)
+        tdata, tfile_list = attach_status_and_fold(tdata, tfile_list, total_status)
+        if total_date:
+            tdata["date"] = total_date
+        tdata["dataset"] = "TOTAL"
+        tbegin, tend = data_markers("TOTAL")
+        html = inject(html, tbegin, tend,
+                      "\n" + json.dumps(tdata, ensure_ascii=False, indent=2) + "\n  ")
+
+        tcases_path = os.path.join(
+            os.path.dirname(args.output) or ".", cases_filename("TOTAL"))
+        with open(tcases_path, "w", encoding="utf-8") as f:
+            f.write("window.CASES=" +
+                    json.dumps(tdetail, ensure_ascii=False, separators=(",", ":")) + ";\n")
+            f.write("window.FILES=" +
+                    json.dumps(tfile_list, ensure_ascii=False, separators=(",", ":")) + ";\n")
+        t_n_files = sum(len(files) for files in tdetail.values())
+        t_n_cases = sum(len(entries) for files in tdetail.values() for entries in files.values())
+        tcases_size = os.path.getsize(tcases_path)
+        print(f"[total] files_total={tdata['files_total']}  files_gen={tdata['files_gen']} "
+              f"({tdata['files_gen_rate']}%)  files_snd={tdata['files_snd']}  "
+              f"cases_total={tdata['cases_total']}  pass_rate={tdata['cases_pass_rate']}%  "
+              f"blacklist={tdata['blacklist_total']}")
+        print(f"[total] detail modules={len(tdetail)}  files={t_n_files}  cases={t_n_cases}  "
+              f"files_list={len(tfile_list)}  -> {tcases_path} ({tcases_size/1024/1024:.2f} MB)")
+        for name, sh in tdata["sheets"].items():
+            print(f"  [total] {name:14s} files={sh['files']:>3} gen={sh['gen_files']:>2} "
+                  f"na={sh['na_files']:>3} cases={sh['gen_cases']:>5} "
+                  f"P={sh['passed']:>5} F={sh['failed']:>5} S={sh['skipped']:>4} "
+                  f"T={sh['timeout']} E={sh['error']} B={sh['blacklist_unsupported']}")
 
     with open(args.output, "w", encoding="utf-8") as f:
         f.write(html)

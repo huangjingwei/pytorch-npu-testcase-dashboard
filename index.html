@@ -29,6 +29,7 @@
   --gen-yes:         #2a78d6;
   --gen-no:          #e1e0d9;
   --gen-snd:         #f0efe9;
+  --gen-nocase:      #d4d3ca;
   --series-1: #2a78d6;
   --series-2: #eb6834;
   --series-3: #1baf7a;
@@ -64,6 +65,7 @@
     --gen-yes:         #3987e5;
     --gen-no:          #383835;
     --gen-snd:         #4b4b47;
+    --gen-nocase:      #262622;
     --series-1: #3987e5;
     --series-2: #d95926;
     --series-3: #199e70;
@@ -97,6 +99,7 @@
   --gen-yes:         #3987e5;
   --gen-no:          #383835;
   --gen-snd:         #4b4b47;
+  --gen-nocase:      #262622;
   --series-1: #3987e5;
   --series-2: #d95926;
   --series-3: #199e70;
@@ -132,7 +135,7 @@ body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--
 .ds-toggle button.active{background:var(--gen-yes);color:#fff}
 
 /* Summary strip */
-.summary-strip{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.summary-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .sum-tile{background:var(--surface-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;display:flex;flex-direction:column;gap:0;position:relative;overflow:hidden}
 .sum-tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--tile-accent,transparent)}
 .sum-label{font-size:0.5625rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;font-weight:600}
@@ -145,21 +148,6 @@ body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--
 .progress-card .progress-title{font-size:0.8125rem;font-weight:600}
 .progress-card .progress-pct{margin-left:auto;font-size:1.25rem;font-weight:600;color:var(--gen-yes);font-variant-numeric:tabular-nums;letter-spacing:-0.01em}
 .progress-card .progress-body{display:flex;align-items:flex-start;gap:96px;flex-wrap:wrap}
-.progress-card .progress-compose{flex:none}
-.progress-card .compose-row{display:flex;align-items:center;gap:16px}
-.progress-card .compose-canvas{flex:none;display:block}
-.progress-card .compose-legend{display:flex;flex-direction:column;gap:6px;min-width:0}
-.progress-card .compose-item{display:flex;align-items:center;gap:6px;font-size:0.6875rem;color:var(--text-secondary);font-variant-numeric:tabular-nums}
-.progress-card .compose-dot{width:8px;height:8px;border-radius:50%;flex:none}
-.progress-card .compose-val{font-weight:600;color:var(--text-primary)}
-.progress-card .compose-divider{height:1px;background:var(--gridline);margin:2px 0}
-.progress-card .compose-item.compose-muted{color:var(--text-muted)}
-.progress-card .compose-item.compose-muted .compose-val{color:var(--text-muted);font-weight:500}
-.progress-card .compose-item.compose-sub{padding-left:14px;font-size:0.5625rem;color:var(--text-muted)}
-.progress-card .compose-item.compose-sub .compose-dot{width:6px;height:6px}
-.progress-card .compose-item.compose-sub .compose-val{color:var(--text-muted);font-weight:500}
-.progress-card .compose-subrow{display:flex;align-items:center;gap:14px;padding-left:14px;flex-wrap:wrap}
-.progress-card .compose-subrow .compose-item.compose-sub{padding-left:0}
 .progress-card .progress-right{flex:1;min-width:320px;display:flex;flex-direction:column;gap:10px}
 .progress-card .progress-right .progress-head{margin-bottom:0}
 .progress-card .progress-metrics{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
@@ -299,6 +287,8 @@ body.no-data #empty-state{display:flex}
 .gen-badge{flex:0 0 52px}
 .gen-badge.g-yes{background:var(--gen-yes);color:#fff}
 .gen-badge.g-no{background:var(--gen-no);color:var(--text-muted)}
+.gen-badge.g-snd{background:var(--gen-snd);color:var(--text-muted)}
+.gen-badge.g-nocase{background:var(--gen-nocase);color:var(--text-muted)}
 .status-tag{flex:0 0 92px}
 .status-tag.st-done{background:var(--status-passed);color:#fff}
 .status-tag.st-inprogress{background:var(--status-skipped);color:#fff}
@@ -333,8 +323,18 @@ body.no-data #empty-state{display:flex}
 /* 用例总览 (top, from Total) + 场景切换 */
 .total-overview{display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:12px}
 .total-overview .chart-card{border-radius:var(--radius)}
-.watch-body{display:flex;flex-direction:column;gap:14px}
-.watch-flow{display:flex;align-items:stretch;flex-wrap:wrap;gap:6px}
+.watch-body{display:flex;flex-direction:column;align-items:center;gap:14px}
+.watch-flow{display:grid;grid-template-columns:auto auto auto auto;grid-template-rows:auto auto;align-items:stretch;justify-content:center;gap:6px;max-width:100%}
+.watch-lhs{display:flex;align-items:center;flex-wrap:wrap;gap:6px;grid-column:1;grid-row:1;align-self:center}
+.watch-rhs{display:flex;align-items:center;flex-wrap:wrap;gap:6px;grid-column:3;grid-row:2;align-self:center}
+.wf-tall{grid-row:1/3;align-self:stretch}
+.wf-tall.wf-result{grid-column:2}
+.wf-tall.wf-watch{grid-column:4}
+.wf-chip.wf-tall .wf-n{font-size:1.5rem;font-weight:700}
+.wf-chip.wf-tall .wf-l{font-size:0.75rem;font-weight:600}
+.wf-chip.wf-muted .wf-n{font-size:0.9375rem;font-weight:500;color:var(--text-muted)}
+.wf-chip.wf-muted .wf-l{font-size:0.625rem;font-weight:500;color:var(--text-muted)}
+.wf-chip.wf-src .wf-l{color:var(--text-primary);font-weight:600}
 .wf-chip{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:9px 16px;border-radius:10px;background:var(--surface-page);border:1px solid var(--border);min-width:76px}
 .wf-chip .wf-n{font-size:1.125rem;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text-primary);line-height:1.05}
 .wf-chip .wf-l{font-size:0.625rem;color:var(--text-muted);font-weight:500;white-space:nowrap}
@@ -343,6 +343,19 @@ body.no-data #empty-state{display:flex}
 .wf-chip.wf-result .wf-l{color:rgba(255,255,255,0.84)}
 .wf-op{align-self:center;color:var(--text-muted);font-size:1.125rem;font-weight:600;line-height:1}
 .wf-op.wf-eq{color:var(--gen-yes)}
+.wf-chip.wf-sunset,.wf-chip.wf-skip,.wf-chip.wf-watch,.wf-chip.wf-blocklist{border-color:transparent;box-shadow:0 2px 10px rgba(0,0,0,0.16),inset 0 1px 0 rgba(255,255,255,0.24)}
+.wf-chip.wf-sunset{background:#8a8f98}
+.wf-chip.wf-sunset .wf-n{color:#fff}
+.wf-chip.wf-sunset .wf-l{color:rgba(255,255,255,0.84)}
+.wf-chip.wf-skip{background:#f7c600}
+.wf-chip.wf-skip .wf-n{color:#3a2c00}
+.wf-chip.wf-skip .wf-l{color:rgba(58,44,0,0.78)}
+.wf-chip.wf-watch{background:#16a34a}
+.wf-chip.wf-watch .wf-n{color:#fff}
+.wf-chip.wf-watch .wf-l{color:rgba(255,255,255,0.84)}
+.wf-chip.wf-blocklist{background:#7c3aed}
+.wf-chip.wf-blocklist .wf-n{color:#fff}
+.wf-chip.wf-blocklist .wf-l{color:rgba(255,255,255,0.84)}
 .watch-flow.is-empty .wf-chip{border-style:dashed}
 .watch-flow.is-empty .wf-chip .wf-n{color:var(--text-muted)}
 .scenario-tabs{display:flex;align-items:flex-start;margin:0 0 -1px 16px;position:relative;z-index:2}
@@ -356,7 +369,7 @@ body.no-data #empty-state{display:flex}
 .scenario-tab:hover .sc-tab-shape polyline{fill:var(--gridline)}
 .scenario-tab:hover{color:var(--text-primary)}
 .scenario-tab.active{color:var(--gen-yes);font-weight:700;z-index:1}
-/* 内容卡片：包裹下方场景内容（总量用例 / 社区解耦用例）；两个正梯形页签从其顶边伸出，底边开口与卡片轮廓连成一体 */
+/* 内容卡片：包裹下方场景内容（总量用例 / 解耦用例）；两个正梯形页签从其顶边伸出，底边开口与卡片轮廓连成一体 */
 .scenario-content{background:var(--surface-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px}
 .scenario-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:56px 24px;text-align:center;background:var(--surface-card);border:1px dashed var(--border);border-radius:var(--radius);margin-bottom:14px}
 .scenario-empty .sc-e-emoji{font-size:2rem;line-height:1}
@@ -402,7 +415,7 @@ body.no-data #empty-state{display:flex}
     </button>
     <button class="scenario-tab" id="scn-decouple" type="button" role="tab" aria-selected="false">
       <svg class="sc-tab-shape" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true"><polyline vector-effect="non-scaling-stroke" points="0,28 10,0 90,0 100,28"/><line class="sc-tab-bottom" vector-effect="non-scaling-stroke" x1="0" y1="28" x2="100" y2="28"/></svg>
-      <span class="sc-txt">社区解耦用例</span>
+      <span class="sc-txt">解耦用例</span>
     </button>
   </div>
 
@@ -413,19 +426,8 @@ body.no-data #empty-state{display:flex}
     <div class="es-sub">A5 报告数据尚未生成，请切换回 A3 报告查看。</div>
   </div>
 
-  <!-- 场景内容卡片：包裹总量用例 / 社区解耦用例两个场景的内容，与上方选中的正梯形页签衔接 -->
+  <!-- 场景内容卡片：概览 / 用例详情 / 测试文件 三个视图（随数据集渲染，场景页签通过 reload 切换） -->
   <div class="scenario-content" id="scenario-content">
-  <!-- 场景：总量用例（数据待生成） -->
-  <div id="scenario-total">
-    <div class="scenario-empty">
-      <div class="sc-e-emoji">🛠️</div>
-      <div class="sc-e-title">总量用例数据待生成</div>
-      <div class="sc-e-sub">总量（全量执行）场景的概览、用例详情、测试文件数据暂未生成，后续补充生成逻辑。</div>
-    </div>
-  </div>
-
-  <!-- 场景：社区解耦用例（概览 + 用例详情 + 测试文件） -->
-  <div id="scenario-decouple" hidden>
 
   <nav class="tabs" role="tablist" aria-label="看板视图">
     <button class="tab active" data-view="overview" role="tab" aria-selected="true">概览</button>
@@ -435,7 +437,7 @@ body.no-data #empty-state{display:flex}
 
   <div id="view-overview">
 
-  <!-- 用例收集进度 + 汇总宫格 — generated by JS -->
+  <!-- 用例解耦进度 + 汇总宫格 — generated by JS -->
   <div class="progress-card" id="collect-progress"></div>
 
   <!-- ============================================================
@@ -515,7 +517,7 @@ body.no-data #empty-state{display:flex}
     </div>
     <div class="chart-card" id="card-file-modules">
       <div class="chart-title">各模块文件泛化情况</div>
-      <div class="chart-subtitle">蓝 = 已泛化 · 灰 = 未泛化 · 淡灰 = Should Not Do</div>
+      <div class="chart-subtitle">蓝 = 已泛化 · 灰 = 未泛化 · 浅灰 = 无用例文件 · 淡灰 = Should Not Do</div>
       <div class="chart-body" style="min-height:200px"><canvas id="chart-file-modules"></canvas></div>
       <div class="chart-legend" id="legend-file-modules"></div>
       <div class="chart-tooltip" id="tooltip-file-modules"></div>
@@ -564,6 +566,7 @@ body.no-data #empty-state{display:flex}
         <option value="all">全部文件</option>
         <option value="gen">已泛化</option>
         <option value="na">未泛化</option>
+        <option value="nocase">无用例文件</option>
         <option value="snd">Should Not Do</option>
       </select>
       <select id="file-status" aria-label="按跟踪状态筛选">
@@ -584,7 +587,6 @@ body.no-data #empty-state{display:flex}
     </div>
     <div class="tree" id="file-list"></div>
   </div>
-  </div><!-- /scenario-decouple -->
   </div><!-- /scenario-content -->
 
   <div class="footer" id="footer-note">TorchNPU 社区用例看板 · Generated —</div>
@@ -599,9 +601,9 @@ body.no-data #empty-state{display:flex}
   var stored = null;
   try { stored = localStorage.getItem("npu-dash-dataset"); } catch (e) { stored = null; }
   var ds = (p || stored || "A3").toUpperCase();
-  if (ds !== "A3" && ds !== "A5") ds = "A3";
+  if (ds !== "A3" && ds !== "A5" && ds !== "TOTAL") ds = "A3";
   window.__DASH_DATASET__ = ds;
-  var file = (ds === "A5") ? "cases_a5.js" : "cases.js";
+  var file = (ds === "A5") ? "cases_a5.js" : (ds === "TOTAL") ? "cases_total.js" : "cases.js";
   document.write('<script src="' + file + '"><\/script>');
 })();
 </script>
@@ -611,18 +613,18 @@ body.no-data #empty-state{display:flex}
 // ================================================================
 const DATA_A3 = /*__DATA_BEGIN__*/
 {
-  "files_total": 1224,
-  "files_gen": 307,
-  "files_na": 743,
-  "files_gen_rate": 29.2,
-  "cases_total": 261700,
+  "files_total": 1227,
+  "files_gen": 311,
+  "files_na": 659,
+  "files_gen_rate": 32.1,
+  "cases_total": 269653,
   "cases": {
-    "passed": 198396,
-    "failed": 8834,
-    "skipped": 36312,
+    "passed": 202612,
+    "failed": 11126,
+    "skipped": 37746,
     "not_executed": 0,
     "timeout": 0,
-    "error": 190,
+    "error": 201,
     "blacklist_unsupported": 17968
   },
   "blacklist_total": 19456,
@@ -635,26 +637,27 @@ const DATA_A3 = /*__DATA_BEGIN__*/
       "cann not supported"
     ]
   },
-  "cases_pass_rate": 95.6,
+  "cases_pass_rate": 94.7,
   "sheets": {
     "Core": {
       "files": 53,
       "gen_files": 32,
-      "na_files": 18,
-      "gen_cases": 12792,
-      "passed": 9389,
-      "failed": 610,
-      "skipped": 1869,
+      "na_files": 12,
+      "gen_cases": 13144,
+      "passed": 9682,
+      "failed": 635,
+      "skipped": 1903,
       "not_executed": 0,
       "timeout": 0,
       "error": 0,
       "blacklist_unsupported": 924,
-      "snd_files": 3
+      "snd_files": 3,
+      "nocase_files": 6
     },
     "Distributed": {
       "files": 252,
       "gen_files": 40,
-      "na_files": 212,
+      "na_files": 181,
       "gen_cases": 498,
       "passed": 284,
       "failed": 0,
@@ -663,82 +666,88 @@ const DATA_A3 = /*__DATA_BEGIN__*/
       "timeout": 0,
       "error": 162,
       "blacklist_unsupported": 0,
-      "snd_files": 0
+      "snd_files": 0,
+      "nocase_files": 31
     },
     "Graph": {
       "files": 536,
-      "gen_files": 163,
-      "na_files": 273,
-      "gen_cases": 63038,
-      "passed": 44296,
-      "failed": 1918,
-      "skipped": 16732,
+      "gen_files": 164,
+      "na_files": 254,
+      "gen_cases": 70301,
+      "passed": 47958,
+      "failed": 4112,
+      "skipped": 18130,
       "not_executed": 0,
       "timeout": 0,
-      "error": 27,
+      "error": 36,
       "blacklist_unsupported": 65,
-      "snd_files": 100
+      "snd_files": 106,
+      "nocase_files": 12
     },
     "Math": {
       "files": 16,
-      "gen_files": 1,
-      "na_files": 15,
-      "gen_cases": 67,
-      "passed": 65,
+      "gen_files": 2,
+      "na_files": 14,
+      "gen_cases": 220,
+      "passed": 218,
       "failed": 0,
       "skipped": 2,
       "not_executed": 0,
       "timeout": 0,
       "error": 0,
       "blacklist_unsupported": 0,
-      "snd_files": 0
+      "snd_files": 0,
+      "nocase_files": 0
     },
     "Other": {
-      "files": 113,
+      "files": 116,
       "gen_files": 20,
-      "na_files": 93,
-      "gen_cases": 3054,
-      "passed": 2883,
+      "na_files": 90,
+      "gen_cases": 3061,
+      "passed": 2890,
       "failed": 82,
       "skipped": 89,
       "not_executed": 0,
       "timeout": 0,
       "error": 0,
       "blacklist_unsupported": 0,
-      "snd_files": 0
+      "snd_files": 0,
+      "nocase_files": 6
     },
     "Quantization": {
       "files": 43,
-      "gen_files": 15,
-      "na_files": 28,
-      "gen_cases": 226,
-      "passed": 162,
-      "failed": 64,
+      "gen_files": 18,
+      "na_files": 25,
+      "gen_cases": 254,
+      "passed": 184,
+      "failed": 70,
       "skipped": 0,
       "not_executed": 0,
       "timeout": 0,
       "error": 0,
       "blacklist_unsupported": 0,
-      "snd_files": 0
+      "snd_files": 0,
+      "nocase_files": 0
     },
     "Tensor": {
       "files": 69,
-      "gen_files": 27,
+      "gen_files": 26,
       "na_files": 6,
-      "gen_cases": 181500,
-      "passed": 140950,
-      "failed": 6140,
-      "skipped": 17434,
+      "gen_cases": 181650,
+      "passed": 141029,
+      "failed": 6207,
+      "skipped": 17436,
       "not_executed": 0,
       "timeout": 0,
-      "error": 1,
+      "error": 3,
       "blacklist_unsupported": 16975,
-      "snd_files": 36
+      "snd_files": 37,
+      "nocase_files": 0
     },
     "Utils": {
       "files": 142,
       "gen_files": 9,
-      "na_files": 98,
+      "na_files": 77,
       "gen_cases": 525,
       "passed": 367,
       "failed": 20,
@@ -747,30 +756,214 @@ const DATA_A3 = /*__DATA_BEGIN__*/
       "timeout": 0,
       "error": 0,
       "blacklist_unsupported": 4,
-      "snd_files": 35
+      "snd_files": 35,
+      "nocase_files": 21
     }
   },
-  "files_snd": 174,
-  "date": "2026-09-23",
+  "files_snd": 181,
+  "files_nocase": 76,
+  "module_target": {
+    "Core": 39922,
+    "Distributed": 9201,
+    "Graph": 253908,
+    "Math": 23225,
+    "Other": 5458,
+    "Quantization": 2471,
+    "Tensor": 211294,
+    "Utils": 25635
+  },
+  "module_snd_target": {
+    "Core": 26,
+    "Graph": 21585,
+    "Tensor": 10285,
+    "Utils": 549
+  },
+  "date": "2026-09-26",
   "dataset": "A3"
 }
   /*__DATA_END__*/;
 const DATA_A5 = /*__DATA_A5_BEGIN__*/ null /*__DATA_A5_END__*/;
-const DATA = (window.__DASH_DATASET__ === "A5") ? DATA_A5 : DATA_A3;
+const DATA_TOTAL = /*__DATA_TOTAL_BEGIN__*/
+{
+  "files_total": 1223,
+  "files_gen": 968,
+  "files_na": 0,
+  "files_gen_rate": 100.0,
+  "cases_total": 534994,
+  "cases": {
+    "passed": 354062,
+    "failed": 23242,
+    "skipped": 127195,
+    "not_executed": 0,
+    "timeout": 0,
+    "error": 933,
+    "blacklist_unsupported": 29562
+  },
+  "blacklist_total": 0,
+  "skip_categories": {
+    "skipped": [],
+    "blacklist_unsupported": []
+  },
+  "cases_pass_rate": 93.6,
+  "sheets": {
+    "Core": {
+      "files": 53,
+      "gen_files": 44,
+      "na_files": 0,
+      "gen_cases": 39785,
+      "passed": 20211,
+      "failed": 1160,
+      "skipped": 13525,
+      "not_executed": 0,
+      "timeout": 0,
+      "error": 0,
+      "blacklist_unsupported": 4889,
+      "snd_files": 3,
+      "nocase_files": 6
+    },
+    "Distributed": {
+      "files": 252,
+      "gen_files": 221,
+      "na_files": 0,
+      "gen_cases": 9050,
+      "passed": 6051,
+      "failed": 447,
+      "skipped": 2337,
+      "not_executed": 0,
+      "timeout": 0,
+      "error": 184,
+      "blacklist_unsupported": 31,
+      "snd_files": 0,
+      "nocase_files": 31
+    },
+    "Graph": {
+      "files": 536,
+      "gen_files": 418,
+      "na_files": 0,
+      "gen_cases": 229156,
+      "passed": 135033,
+      "failed": 13911,
+      "skipped": 73984,
+      "not_executed": 0,
+      "timeout": 0,
+      "error": 733,
+      "blacklist_unsupported": 5495,
+      "snd_files": 106,
+      "nocase_files": 12
+    },
+    "Math": {
+      "files": 16,
+      "gen_files": 16,
+      "na_files": 0,
+      "gen_cases": 23223,
+      "passed": 17447,
+      "failed": 428,
+      "skipped": 4968,
+      "not_executed": 0,
+      "timeout": 0,
+      "error": 0,
+      "blacklist_unsupported": 380,
+      "snd_files": 0,
+      "nocase_files": 0
+    },
+    "Other": {
+      "files": 112,
+      "gen_files": 108,
+      "na_files": 0,
+      "gen_cases": 5389,
+      "passed": 3939,
+      "failed": 149,
+      "skipped": 1277,
+      "not_executed": 0,
+      "timeout": 0,
+      "error": 0,
+      "blacklist_unsupported": 24,
+      "snd_files": 0,
+      "nocase_files": 4
+    },
+    "Quantization": {
+      "files": 43,
+      "gen_files": 43,
+      "na_files": 0,
+      "gen_cases": 2471,
+      "passed": 1752,
+      "failed": 435,
+      "skipped": 274,
+      "not_executed": 0,
+      "timeout": 0,
+      "error": 10,
+      "blacklist_unsupported": 0,
+      "snd_files": 0,
+      "nocase_files": 0
+    },
+    "Tensor": {
+      "files": 69,
+      "gen_files": 32,
+      "na_files": 0,
+      "gen_cases": 200876,
+      "passed": 156424,
+      "failed": 6584,
+      "skipped": 19212,
+      "not_executed": 0,
+      "timeout": 0,
+      "error": 1,
+      "blacklist_unsupported": 18655,
+      "snd_files": 37,
+      "nocase_files": 0
+    },
+    "Utils": {
+      "files": 142,
+      "gen_files": 86,
+      "na_files": 0,
+      "gen_cases": 25044,
+      "passed": 13205,
+      "failed": 128,
+      "skipped": 11618,
+      "not_executed": 0,
+      "timeout": 0,
+      "error": 5,
+      "blacklist_unsupported": 88,
+      "snd_files": 35,
+      "nocase_files": 21
+    }
+  },
+  "files_snd": 181,
+  "files_nocase": 74,
+  "module_target": {
+    "Core": 39811,
+    "Distributed": 9046,
+    "Graph": 250739,
+    "Math": 23223,
+    "Other": 5389,
+    "Quantization": 2471,
+    "Tensor": 211161,
+    "Utils": 25592
+  },
+  "module_snd_target": {
+    "Core": 26,
+    "Graph": 21584,
+    "Tensor": 10285,
+    "Utils": 549
+  },
+  "date": "2026-09-23",
+  "dataset": "TOTAL"
+}
+  /*__DATA_TOTAL_END__*/;
+const DATA = (window.__DASH_DATASET__ === "A5") ? DATA_A5 : (window.__DASH_DATASET__ === "TOTAL") ? DATA_TOTAL : DATA_A3;
 const DATA_EMPTY = !DATA || !DATA.sheets || Object.keys(DATA.sheets).length === 0;
 const TOTAL_OVERVIEW = /*__TOTAL_BEGIN__*/
 {
   "dist": {
-    "pub": 144136,
-    "cpu": 232699,
-    "npu": 194261
+    "pub": 534584,
+    "cpu": 21323,
+    "npu": 11525
   },
   "watch": {
     "collected": 567438,
-    "community_skip": 139086,
-    "blocklist": 29884,
+    "community_skip": 127195,
+    "blocklist": 29562,
     "snd": 32444,
-    "result": 366024
+    "result": 378237
   },
   "date": "2026-09-23"
 }
@@ -787,15 +980,16 @@ const CASE_KEYS = ["passed","failed","skipped","blacklist_unsupported","not_exec
 
 function caseTotal(sh){ let t=0; for(const k of CASE_KEYS)t+=(sh[k]||0); return t; }
 
-// 无需泛化（未泛化且优先级 Should Not Do）文件不参与「收集目标」：其
-// 公共/CPU/NPU 预收集用例数从目标中剔除，并按模块汇总（与生成器 files_snd 同口径）。
+// Should Not Do 文件不参与「收集目标」：所有 Priority=="Should Not Do" 文件
+// （社区日落）的 公共/CPU/NPU 预收集用例数从目标中剔除，并按模块汇总，供
+// 「收集目标」蓝色柱里用淡蓝标出 Should Not Do 份额。总量/解耦两场景口径一致。
 // total/pub/cpu/npu = 预收集用例（供「收集目标」剔除）；
-// num = 已收集用例（实际运行数量，供「已收集用例」剔除，与收集出来的用例同口径）。
+// num = 已收集用例（实际运行数量，供「收集测试用例」tile 剔除，与收集出来的用例同口径）。
 function sndCaseTotals(files){
   var out={total:0, pub:0, cpu:0, npu:0, num:0, byModule:{}};
   for(var i=0;i<files.length;i++){
     var it=files[i];
-    if(it[2]===0 && it[5]==="Should Not Do"){
+    if(it[5]==="Should Not Do"){
       var pub=it[9]||0, cpu=it[7]||0, npu=it[8]||0, c=pub+cpu+npu;
       out.total+=c; out.pub+=pub; out.cpu+=cpu; out.npu+=npu;
       out.num += it[3]||0;   // 实际运行数量（收集出来的用例）
@@ -856,42 +1050,38 @@ function setupDatasetSwitch(){
     const u=new URL(location.href); u.searchParams.set("dataset","A5"); location.assign(u.toString());
   });
   paint();
+  const curLabel=(cur==="TOTAL")?"总量":cur;
   const date=(DATA&&DATA.date)||"—";
   const sub=document.getElementById("header-sub");
-  if(sub) sub.textContent="用例执行结果全景视图 · "+cur+" · 更新于 "+date;
+  if(sub) sub.textContent="用例执行结果全景视图 · "+curLabel+" · 更新于 "+date;
   const ft=document.getElementById("footer-note");
-  if(ft) ft.textContent="TorchNPU 社区用例看板 · "+cur+" · Generated "+date;
+  if(ft) ft.textContent="TorchNPU 社区用例看板 · "+curLabel+" · Generated "+date;
 }
 setupDatasetSwitch();
 
 // ================================================================
-// SCENARIO (总量用例/社区解耦用例) SWITCH — 全局切换（概览/用例详情/测试文件三个视图），仅显隐，不重载。
+// SCENARIO (总量用例/解耦用例) SWITCH — 场景页签与数据集联动，通过 reload 切换。
+// 总量用例 → ?dataset=TOTAL；解耦用例 → ?dataset=A3（A5 仍为社区解耦的空白变体）。
+// 概览/用例详情/测试文件三个视图共用一套 DOM，随当前 dataset 渲染。
 // ================================================================
 function setupScenarioSwitch(){
   const totalBtn=document.getElementById("scn-total"), decBtn=document.getElementById("scn-decouple");
-  const totalEl=document.getElementById("scenario-total"), decEl=document.getElementById("scenario-decouple");
-  if(!totalBtn||!decBtn||!totalEl||!decEl) return;
-  let cur="total";
-  try{ cur=localStorage.getItem("npu-dash-scenario")||"total"; }catch(e){}
-  if(cur!=="total"&&cur!=="decouple") cur="total";
+  if(!totalBtn||!decBtn) return;
+  const ds=window.__DASH_DATASET__||"A3";
   function paint(){
-    totalBtn.classList.toggle("active",cur==="total");
-    decBtn.classList.toggle("active",cur==="decouple");
-    totalBtn.setAttribute("aria-selected",cur==="total");
-    decBtn.setAttribute("aria-selected",cur==="decouple");
-    totalEl.hidden=(cur!=="total");
-    decEl.hidden=(cur!=="decouple");
+    const isTotal=(ds==="TOTAL");
+    totalBtn.classList.toggle("active",isTotal);
+    decBtn.classList.toggle("active",!isTotal);
+    totalBtn.setAttribute("aria-selected",isTotal);
+    decBtn.setAttribute("aria-selected",!isTotal);
   }
-  totalBtn.addEventListener("click",function(){
-    cur="total"; try{localStorage.setItem("npu-dash-scenario","total");}catch(e){}
-    paint();
-  });
-  decBtn.addEventListener("click",function(){
-    cur="decouple"; try{localStorage.setItem("npu-dash-scenario","decouple");}catch(e){}
-    paint();
-    // 模块堆叠条按容器实测宽度绘制，隐藏时宽度为 0 —— 切回社区解耦用例后重绘一次。
-    renderAll();
-  });
+  function go(target){
+    if(ds===target) return;
+    try{ localStorage.setItem("npu-dash-scenario", target==="TOTAL"?"total":"decouple"); }catch(e){}
+    const u=new URL(location.href); u.searchParams.set("dataset",target); location.assign(u.toString());
+  }
+  totalBtn.addEventListener("click",function(){ go("TOTAL"); });
+  decBtn.addEventListener("click",function(){ go("A3"); });
   paint();
 }
 setupScenarioSwitch();
@@ -940,10 +1130,11 @@ function renderFileDonut(){
   const items=[
     {label:"已泛化",value:DATA.files_gen,color:getCSS("--gen-yes"),gen:1},
     {label:"未泛化",value:DATA.files_na,color:getCSS("--gen-no"),gen:0},
+    {label:"无用例文件",value:DATA.files_nocase,color:getCSS("--gen-nocase"),gen:3},
     {label:"Should Not Do",value:DATA.files_snd,color:getCSS("--gen-snd"),gen:2}
   ];
   const total=DATA.files_total;
-  const rateBase=DATA.files_gen+DATA.files_na; // 泛化率分母 = 已泛化 + 未泛化（不含 无需泛化）
+  const rateBase=DATA.files_gen+DATA.files_na; // 泛化率分母 = 已泛化 + 未泛化（不含 无用例文件 / Should Not Do）
   const hovered=fileDonutHover;
   let startAngle=-Math.PI/2;
   const slices=[];
@@ -974,7 +1165,7 @@ function renderFileDonut(){
   ctx.fillText("泛化率",cx,cy+14);
 
   document.getElementById("legend-file-donut").innerHTML=items.map(it=>{
-    const pctHtml=it.gen===2?"":` <span class="side-legend-muted">(${pct(it.value,rateBase).toFixed(1)}%)</span>`;
+    const pctHtml=(it.gen===2||it.gen===3)?"":` <span class="side-legend-muted">(${pct(it.value,rateBase).toFixed(1)}%)</span>`;
     return `<div class="side-legend-item clickable${it.gen===fileDonutHover?" active":""}" data-gen="${it.gen}"><span class="side-legend-dot" style="background:${it.color}"></span><span class="side-legend-label">${it.label}</span><span class="side-legend-value">${fmt(it.value)}${pctHtml}</span></div>`;
   }).join("");
 
@@ -994,7 +1185,7 @@ function renderFileDonut(){
     if(key!==fileDonutHover){ fileDonutHover=key; renderFileDonut(); }
     if(!hit){tooltip.classList.remove("visible");canvas.style.cursor="default";return;}
     canvas.style.cursor="pointer";
-    tooltip.innerHTML=hit.item.gen===2
+    tooltip.innerHTML=(hit.item.gen===2||hit.item.gen===3)
       ? `<strong>${hit.item.label}</strong><br>${fmt(hit.item.value)} 文件`
       : `<strong>${hit.item.label}</strong><br>${fmt(hit.item.value)} 文件 (${pct(hit.item.value,rateBase).toFixed(1)}%)`;
     tooltip.classList.add("visible");positionTooltip(tooltip,card,e);
@@ -1038,8 +1229,9 @@ function renderFileModules(){
     const y=padT+i*(barH+gap);
     const bw=(sh.files/maxVal)*plotW;
     const gbw=(sh.gen_files/maxVal)*plotW;
+    const naw=(sh.na_files/maxVal)*plotW;
+    const ncw=(sh.nocase_files/maxVal)*plotW;
     const sbw=(sh.snd_files/maxVal)*plotW;
-    const naw=(sh.files-sh.gen_files-sh.snd_files)/maxVal*plotW;
     ctx.globalAlpha=(hovered && !segOn(name,0))?0.3:1;
     ctx.fillStyle=getCSS("--gen-no");
     roundRect(ctx,padL,y,bw,barH,0);ctx.fill();
@@ -1049,23 +1241,30 @@ function renderFileModules(){
       ctx.fillStyle=getCSS("--gen-yes");
       roundRect(ctx,padL,y,gbw,barH,0);ctx.fill();
       ctx.globalAlpha=1;
-      barData.push({x:padL,y,w:gbw,h:barH,name,files:sh.files,genFiles:sh.gen_files,sndFiles:sh.snd_files,gen:1});
+      barData.push({x:padL,y,w:gbw,h:barH,name,files:sh.files,genFiles:sh.gen_files,naFiles:sh.na_files,nocaseFiles:sh.nocase_files,sndFiles:sh.snd_files,gen:1});
+    }
+    if(sh.nocase_files>0){
+      ctx.globalAlpha=(hovered && !segOn(name,3))?0.3:1;
+      ctx.fillStyle=getCSS("--gen-nocase");
+      roundRect(ctx,padL+gbw+naw,y,ncw,barH,0);ctx.fill();
+      ctx.globalAlpha=1;
+      barData.push({x:padL+gbw+naw,y,w:ncw,h:barH,name,files:sh.files,genFiles:sh.gen_files,naFiles:sh.na_files,nocaseFiles:sh.nocase_files,sndFiles:sh.snd_files,gen:3});
     }
     if(sh.snd_files>0){
       ctx.globalAlpha=(hovered && !segOn(name,2))?0.3:1;
       ctx.fillStyle=getCSS("--gen-snd");
-      roundRect(ctx,padL+gbw+naw,y,sbw,barH,0);ctx.fill();
+      roundRect(ctx,padL+gbw+naw+ncw,y,sbw,barH,0);ctx.fill();
       ctx.globalAlpha=1;
-      barData.push({x:padL+gbw+naw,y,w:sbw,h:barH,name,files:sh.files,genFiles:sh.gen_files,sndFiles:sh.snd_files,gen:2});
+      barData.push({x:padL+gbw+naw+ncw,y,w:sbw,h:barH,name,files:sh.files,genFiles:sh.gen_files,naFiles:sh.na_files,nocaseFiles:sh.nocase_files,sndFiles:sh.snd_files,gen:2});
     }
-    barData.push({x:padL+gbw,y,w:naw,h:barH,name,files:sh.files,genFiles:sh.gen_files,sndFiles:sh.snd_files,gen:0});
+    barData.push({x:padL+gbw,y,w:naw,h:barH,name,files:sh.files,genFiles:sh.gen_files,naFiles:sh.na_files,nocaseFiles:sh.nocase_files,sndFiles:sh.snd_files,gen:0});
     const labelSel=hovered && hovered.name===name;
     ctx.fillStyle=labelSel?getCSS("--text-primary"):getCSS("--text-secondary");
     ctx.font=(labelSel?"600 11px":"11px")+" system-ui,-apple-system,sans-serif";
     ctx.textAlign="right";ctx.textBaseline="middle";
     ctx.fillText(name,padL-8,y+barH/2);
     ctx.textAlign="left";
-    const rateDenom=sh.files-sh.snd_files; // 已泛化 + 未泛化
+    const rateDenom=sh.gen_files+sh.na_files; // 已泛化 + 未泛化（不含 无用例文件 / Should Not Do）
     if(sh.gen_files>0){ctx.fillStyle=getCSS("--text-secondary");ctx.fillText(sh.gen_files+"/"+rateDenom,padL+bw+6,y+barH/2);}
     else{ctx.fillStyle=getCSS("--text-muted");ctx.fillText("0/"+rateDenom,padL+bw+6,y+barH/2);}
   });
@@ -1079,6 +1278,7 @@ function renderFileModules(){
   document.getElementById("legend-file-modules").innerHTML=`
     <div class="chart-legend-item"><span class="chart-legend-dot" style="background:${getCSS('--gen-yes')}"></span>已泛化文件</div>
     <div class="chart-legend-item"><span class="chart-legend-dot" style="background:${getCSS('--gen-no')}"></span>未泛化文件</div>
+    <div class="chart-legend-item"><span class="chart-legend-dot" style="background:${getCSS('--gen-nocase')}"></span>无用例文件</div>
     <div class="chart-legend-item"><span class="chart-legend-dot" style="background:${getCSS('--gen-snd')}"></span>Should Not Do 文件</div>
   `;
 
@@ -1099,14 +1299,15 @@ function renderFileModules(){
     if(key!==prev){ fileBarHover=next; renderFileModules(); }
     if(hit){
       canvas.style.cursor="pointer";
-      const base=hit.files-hit.sndFiles; // 泛化率只统计 已泛化 + 未泛化，不含 无需泛化
+      const base=hit.genFiles+hit.naFiles; // 泛化率只统计 已泛化 + 未泛化，不含 无用例文件 / Should Not Do
       if(hit.gen===1){
         tooltip.innerHTML=`<strong>${hit.name} · 已泛化文件</strong><br>${hit.genFiles}/${base} 文件 (${pct(hit.genFiles,base).toFixed(1)}%)`;
       }else if(hit.gen===2){
         tooltip.innerHTML=`<strong>${hit.name} · Should Not Do 文件</strong><br>${hit.sndFiles} 文件`;
+      }else if(hit.gen===3){
+        tooltip.innerHTML=`<strong>${hit.name} · 无用例文件</strong><br>${hit.nocaseFiles} 文件`;
       }else{
-        const na=hit.files-hit.genFiles-hit.sndFiles;
-        tooltip.innerHTML=`<strong>${hit.name} · 未泛化文件</strong><br>${na}/${base} 文件 (${pct(na,base).toFixed(1)}%)`;
+        tooltip.innerHTML=`<strong>${hit.name} · 未泛化文件</strong><br>${hit.naFiles}/${base} 文件 (${pct(hit.naFiles,base).toFixed(1)}%)`;
       }
       tooltip.classList.add("visible");positionTooltip(tooltip,card,e);
       return;
@@ -1244,14 +1445,21 @@ function renderModules(){
   const names=Object.keys(DATA.sheets);
   const activeKeys=CASE_KEYS.filter(k=>Object.values(DATA.sheets).some(sh=>(sh[k]||0)>0));
   const maxTotal=Math.max(...names.map(n=>caseTotal(DATA.sheets[n])));
-  // 应收集目标 = 该模块各文件 公共 + CPU + NPU 预收集之和（总量参考）。
-  // 其中「无需泛化」文件的预收集用例以淡蓝色标出，不计入目标。
+  // 应收集目标 = 总量用例（各模块 公共 + CPU + NPU 预收集之和）。「收集目标」表示
+  // 的是总量用例，故总量/解耦两场景统一取自 Total 数据（DATA_TOTAL.module_target /
+  // .module_snd_target），保证蓝色柱数值一致；无 Total 数据时回退本场景文件列表。
   const files=window.FILES||[];
-  const snd=sndCaseTotals(files);
-  const tgtByModule={};
-  for(let i=0;i<files.length;i++){
-    const it=files[i];
-    tgtByModule[it[0]]=(tgtByModule[it[0]]||0)+(it[7]||0)+(it[8]||0)+(it[9]||0);
+  let tgtByModule=(DATA_TOTAL && DATA_TOTAL.module_target) || null;
+  let sndByModule=(DATA_TOTAL && DATA_TOTAL.module_snd_target) || null;
+  if(!tgtByModule){
+    tgtByModule={};
+    for(let i=0;i<files.length;i++){
+      const it=files[i];
+      tgtByModule[it[0]]=(tgtByModule[it[0]]||0)+(it[7]||0)+(it[8]||0)+(it[9]||0);
+    }
+  }
+  if(!sndByModule){
+    sndByModule=sndCaseTotals(files).byModule;
   }
   const maxTarget=Math.max(0,...names.map(n=>tgtByModule[n]||0));
   const maxVal=Math.max(1,maxTotal,maxTarget);
@@ -1285,7 +1493,7 @@ function renderModules(){
     // 应收集目标（蓝色参考条，位于堆叠条上方）：总量淡蓝打底，其中「无需泛化」
     // 部分以淡蓝标出，需要处理的部分用实蓝覆盖。
     const tv=tgtByModule[name]||0;
-    const sndV=snd.byModule[name]||0;
+    const sndV=sndByModule[name]||0;
     if(tv>0){
       const tw=(tv/maxVal)*plotW;
       ctx.globalAlpha=(hovered && hovered.module!==name)?0.3:1;
@@ -1477,49 +1685,25 @@ function renderSectionSubs(){
 function renderCollectProgress(){
   var el=document.getElementById("collect-progress");
   if(!el) return;
+  // 总量用例场景无「解耦进度」口径：目标=社区总量用例 取自总量数据本身，会超 100%，故隐藏。
+  if(window.__DASH_DATASET__==="TOTAL"){ el.hidden=true; el.innerHTML=""; return; }
+  el.hidden=false;
   var files=window.FILES||[];
-  var snd=sndCaseTotals(files);   // 无需泛化：total=预收集（剔除目标）/ num=已收集（剔除已收集）
-  var collected=DATA.blacklist_total||0, pubTotal=0, cpuTotal=0, npuTotal=0;   // 已收集 = 实际运行 + blacklist（blacklist_total 含 Running Skiped，展示时并入 skipped）
+  var snd=sndCaseTotals(files);   // 无需泛化：total=预收集 / num=已收集（剔除已收集）
+  var collected=DATA.blacklist_total||0;   // 已收集 = 实际运行 + blacklist（blacklist_total 含 Running Skiped，展示时并入 skipped）
   for(var i=0;i<files.length;i++){
-    var it=files[i];
-    collected += it[3]||0;     // num (实际运行数量)
-    pubTotal  += it[9]||0;     // 公共收集
-    cpuTotal  += it[7]||0;     // CPU预收集
-    npuTotal  += it[8]||0;     // NPU预收集 (PrivateUse1)
+    collected += files[i][3]||0;  // num (实际运行数量)
   }
-  var target = pubTotal + cpuTotal + npuTotal - snd.total;
+  // 目标 = 社区总量用例（收集用例 − 社区日落用例，来自 TOTAL_OVERVIEW.watch）
+  var w=(TOTAL_OVERVIEW && TOTAL_OVERVIEW.watch)?TOTAL_OVERVIEW.watch:null;
+  var target=(w && w.collected!=null && w.snd!=null) ? (w.collected - w.snd) : 0;
   var pct = target>0 ? collected/target*100 : 0;
   var pctTxt = pct.toFixed(1)+"%";
-  var compose=[
-    {label:"公共用例", value:pubTotal-snd.pub, color:getCSS("--series-1")},
-    {label:"CPU泛化用例", value:cpuTotal-snd.cpu, color:getCSS("--series-2")},
-    {label:"PU1泛化用例", value:npuTotal-snd.npu, color:getCSS("--series-3")}
-  ];
-  var legend="";
-  for(var j=0;j<compose.length;j++){
-    var c=compose[j];
-    legend+='<span class="compose-item"><span class="compose-dot" style="background:'+c.color+'"></span><span>'+c.label+'</span><span class="compose-val">'+fmt(c.value)+'</span></span>';
-  }
-  if(snd.total>0){
-    legend+='<span class="compose-divider"></span>'+
-      '<span class="compose-item compose-muted"><span class="compose-dot" style="background:'+getCSS("--gen-snd")+'"></span><span>不计入目标（Should Not Do）：</span><span class="compose-val">'+fmt(snd.total)+'</span></span>';
-    var sndParts=[
-      {label:"公共", value:snd.pub, color:getCSS("--series-1")},
-      {label:"CPU", value:snd.cpu, color:getCSS("--series-2")},
-      {label:"PU1", value:snd.npu, color:getCSS("--series-3")}
-    ];
-    legend+='<span class="compose-subrow">';
-    for(var k=0;k<sndParts.length;k++){
-      var sp=sndParts[k];
-      legend+='<span class="compose-item compose-sub"><span class="compose-dot" style="background:'+sp.color+'"></span><span>'+sp.label+'</span><span class="compose-val">'+fmt(sp.value)+'</span></span>';
-    }
-    legend+='</span>';
-  }
   // 汇总宫格（与概览同步，失败用例数已移除）
   var tiles=[
-    {label:"应收集的测试文件", value:fmt(DATA.files_total-DATA.files_snd), sub:"总量 "+fmt(DATA.files_total)+"（含 Should Not Do 文件"+fmt(DATA.files_snd)+"）", accent:"var(--series-7)", color:""},
+    {label:"应解耦文件", value:fmt(DATA.files_total-DATA.files_snd), sub:"总量 "+fmt(DATA.files_total)+"（含 Should Not Do 文件"+fmt(DATA.files_snd)+"）", accent:"var(--series-7)", color:""},
+    {label:"已解耦文件", value:fmt(DATA.files_gen), sub:"泛化率 "+DATA.files_gen_rate.toFixed(1)+"%", accent:"var(--gen-yes)", color:"var(--gen-yes)"},
     {label:"收集测试用例", value:fmt(DATA.cases_total - snd.num), sub:"含 blacklist "+fmt(DATA.cases.blacklist_unsupported)+"，其中剔除 Should Not Do 的用例 "+fmt(snd.num), accent:"var(--series-7)", color:""},
-    {label:"已泛化文件", value:fmt(DATA.files_gen), sub:"泛化率 "+DATA.files_gen_rate.toFixed(1)+"%", accent:"var(--gen-yes)", color:"var(--gen-yes)"},
     {label:"看护用例数", value:fmt(DATA.cases.passed+DATA.cases.failed+DATA.cases.error+DATA.cases.timeout), sub:"通过 "+fmt(DATA.cases.passed)+" · 失败 "+fmt(DATA.cases.failed)+" · 错误/超时 "+fmt(DATA.cases.error+DATA.cases.timeout), accent:"var(--series-1)", color:"var(--series-1)"}
   ];
   var tilesHtml=tiles.map(function(t){
@@ -1530,18 +1714,9 @@ function renderCollectProgress(){
   }).join("");
   el.innerHTML =
     '<div class="progress-body">'+
-      '<div class="progress-compose">'+
-        '<div class="progress-head">'+
-          '<span class="progress-title">用例目标</span>'+
-        '</div>'+
-        '<div class="compose-row">'+
-          '<canvas class="compose-canvas"></canvas>'+
-          '<div class="compose-legend">'+legend+'</div>'+
-        '</div>'+
-      '</div>'+
       '<div class="progress-right">'+
         '<div class="progress-head">'+
-          '<span class="progress-title">用例收集进度</span>'+
+          '<span class="progress-title">用例解耦进度</span>'+
         '</div>'+
         '<div class="progress-metrics">'+
           '<span class="progress-nums">已收集 '+fmt(collected)+' / 目标 '+fmt(target)+' 用例</span>'+
@@ -1551,58 +1726,50 @@ function renderCollectProgress(){
         '<div class="summary-strip">'+tilesHtml+'</div>'+
       '</div>'+
     '</div>';
-
-  // 目标构成环形图（公共 / CPU / PrivateUse1 占比），尺寸与看护通过率饼图一致
-  var cv=el.querySelector(".compose-canvas");
-  if(cv){
-    var size=200;
-    var d=setupCanvas(cv,size,size);
-    var cctx=d.ctx, cx=size/2, cy=size/2, rO=Math.min(cx,cy)-6, rI=rO*0.55;
-    var start=-Math.PI/2;
-    for(var k=0;k<compose.length;k++){
-      var cc=compose[k];
-      var ang=target>0?(cc.value/target)*Math.PI*2:0;
-      if(ang<=0) continue;
-      cctx.beginPath();
-      cctx.arc(cx,cy,rO,start,start+ang);
-      cctx.arc(cx,cy,rI,start+ang,start,true);
-      cctx.closePath();
-      cctx.fillStyle=cc.color;
-      cctx.fill();
-      cctx.lineWidth=2;cctx.strokeStyle=getCSS("--surface-card");cctx.stroke();
-      start+=ang;
-    }
-    cctx.fillStyle=getCSS("--text-primary");
-    cctx.font="600 22px system-ui,-apple-system,sans-serif";
-    cctx.textAlign="center";cctx.textBaseline="middle";
-    cctx.fillText(fmt(target),cx,cy-4);
-    cctx.fillStyle=getCSS("--text-muted");
-    cctx.font="11px system-ui,-apple-system,sans-serif";
-    cctx.fillText("目标",cx,cy+14);
-  }
 }
 // 顶部「用例总览」：用例看护策略公式，数据来自总量（Total）。
+// 顶部「用例总览」：用例看护策略公式，数据来自总量（Total）。
+// 两行：顶行「收集用例 − 社区日落用例 =」从左侧接入社区总量用例框；
+//       底行「− 社区跳过用例 − 黑名单跳过用例 =」从社区总量用例框接出到目标看护用例框。
+// 社区总量用例、目标看护用例两个框竖向拉高横跨两行（同高）。
 function renderTotalOverview(){
   var card=document.getElementById("total-overview");
   var watch=document.getElementById("total-watch");
   if(!card||!watch) return;
   var w=(TOTAL_OVERVIEW && TOTAL_OVERVIEW.watch)?TOTAL_OVERVIEW.watch:null;
-  var terms=[
-    {l:"社区总量用例", n:w?w.collected:null},
-    {l:"社区跳过用例", n:w?w.community_skip:null},
-    {l:"黑名单跳过用例", n:w?w.blocklist:null},
-    {l:"社区日落用例", n:w?w.snd:null}
-  ];
-  var result=w?w.result:null;
   var num=function(v){ return v==null?"—":fmt(v); };
-  var h='<div class="watch-flow'+(w?'':' is-empty')+'">';
-  h+='<div class="wf-chip'+(w?' wf-result':'')+'"><span class="wf-n">'+num(result)+'</span><span class="wf-l">看护用例</span></div>';
-  h+='<span class="wf-op wf-eq">=</span>';
-  h+='<div class="wf-chip"><span class="wf-n">'+num(terms[0].n)+'</span><span class="wf-l">'+terms[0].l+'</span></div>';
-  for(var i=1;i<terms.length;i++){
-    h+='<span class="wf-op">−</span>';
-    h+='<div class="wf-chip"><span class="wf-n">'+num(terms[i].n)+'</span><span class="wf-l">'+terms[i].l+'</span></div>';
+  var collected=w?w.collected:null;
+  var snd=w?w.snd:null;
+  // 社区总量用例 = 收集用例（原社区总量用例）− 社区日落用例
+  var communityTotal=(collected!=null&&snd!=null)?(collected-snd):null;
+
+  function chip(n, label, cls, title){
+    var c=(w&&cls)?' '+cls:'';
+    var t=title?' title="'+title+'"':'';
+    return '<div class="wf-chip'+c+'"'+t+'><span class="wf-n">'+num(n)+'</span><span class="wf-l">'+label+'</span></div>';
   }
+  function op(o, eq){ return '<span class="wf-op'+(eq?' wf-eq':'')+'">'+o+'</span>'; }
+
+  var h='<div class="watch-flow'+(w?'':' is-empty')+'">';
+  // 顶行（左侧）：收集用例 − 社区日落用例 =
+  h+='<div class="watch-lhs">';
+  h+=chip(collected, "收集用例", "wf-src", "原社区总量用例");
+  h+=op("−");
+  h+=chip(snd, "社区日落用例", "wf-muted");
+  h+=op("=", true);
+  h+='</div>';
+  // 中间框：社区总量用例（拉高、放大、加粗，凸显）
+  h+=chip(communityTotal, "社区总量用例", "wf-result wf-tall");
+  // 底行（右侧）：− 社区跳过用例 − 黑名单跳过用例 =
+  h+='<div class="watch-rhs">';
+  h+=op("−");
+  h+=chip(w?w.community_skip:null, "社区跳过用例", "wf-muted");
+  h+=op("−");
+  h+=chip(w?w.blocklist:null, "黑名单跳过用例", "wf-muted");
+  h+=op("=", true);
+  h+='</div>';
+  // 最右框：目标看护用例（拉高、放大、加粗，凸显）
+  h+=chip(w?w.result:null, "目标看护用例", "wf-watch wf-tall");
   h+='</div>';
   watch.innerHTML=h;
 }
@@ -1951,6 +2118,15 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
     if(text){ s.classList.add(mod); s.textContent=text; s.title=text; }
     return s;
   }
+  // 四分类：2 = Should Not Do（Priority=="Should Not Do"），
+  // 1 = 已泛化（num>0 且非 Should Not Do），
+  // 0 = 未泛化（num==0 但有预收集用例），3 = 无用例文件（num==0 且无预收集用例）。
+  function genState(it){
+    if(it[5]==="Should Not Do") return 2;
+    if(it[2]) return 1;                     // num>0
+    const pre=(it[7]||0)+(it[8]||0)+(it[9]||0);
+    return pre>0 ? 0 : 3;                   // 0=未泛化, 3=无用例文件
+  }
   function fileRow(item){ // [module, file, gen(0/1), num, status, priority, assignee, cpu, npu, pub]
     const mod=item[0], path=item[1], gen=item[2], num=item[3];
     const status=item[4]||"", priority=item[5]||"", assignee=item[6]||"";
@@ -1976,7 +2152,9 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
     r.appendChild(as);
     r.appendChild(pill("status-tag", status, "st-"+status.toLowerCase().replace(/\s+/g,"")));
     r.appendChild(pill("priority-tag", priority, "p-"+priority.toLowerCase().replace(/\s+/g,"")));
-    r.appendChild(el("span","gen-badge "+(gen?"g-yes":"g-no"), gen?"已泛化":"未泛化"));
+    const gs=genState(item);
+    const badge=gs===2?["g-snd","Should Not Do"]:gs===1?["g-yes","已泛化"]:gs===3?["g-nocase","无用例文件"]:["g-no","未泛化"];
+    r.appendChild(el("span","gen-badge "+badge[0], badge[1]));
     return r;
   }
   function fileHead(){
@@ -1998,7 +2176,7 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
     const c=caret(false); c.classList.add("open");
     r.appendChild(c);
     r.appendChild(el("span","tree-label",mod));
-    let gen=0; items.forEach(function(it){ if(it[2]) gen++; });
+    let gen=0; items.forEach(function(it){ if(genState(it)===1) gen++; });
     r.appendChild(el("span","tree-meta", items.length+" 文件 · "+gen+" 已泛化"));
     const kids=el("div","tree-children");
     items.forEach(function(it){ kids.appendChild(fileRow(it)); });
@@ -2013,9 +2191,11 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
     let list=FILES;
     if(mSel.size) list=list.filter(function(it){return mSel.has(it[0]);});
     if(gSel.size) list=list.filter(function(it){
-      if(gSel.has("gen") && it[2]===1) return true;
-      if(gSel.has("na")  && it[2]===0 && it[5]!=="Should Not Do") return true;
-      if(gSel.has("snd") && it[2]===0 && it[5]==="Should Not Do") return true;
+      const gs=genState(it);
+      if(gSel.has("gen")    && gs===1) return true;
+      if(gSel.has("na")     && gs===0) return true;
+      if(gSel.has("snd")    && gs===2) return true;
+      if(gSel.has("nocase") && gs===3) return true;
       return false;
     });
     // "none" in the file filters means "empty field"; a file matches when either
@@ -2092,7 +2272,7 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
   function openFilesTab(filter){
     filter=filter||{};
     mselFileModule.set(filter.module ? [filter.module] : []);
-    mselFileGen.set(filter.gen==null ? [] : [filter.gen===1?"gen":filter.gen===2?"snd":"na"]);
+    mselFileGen.set(filter.gen==null ? [] : [filter.gen===1?"gen":filter.gen===2?"snd":filter.gen===3?"nocase":"na"]);
     mselFileStatus.clear();
     mselFilePriority.clear();
     mselFileAssignee.clear();

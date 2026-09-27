@@ -68,8 +68,9 @@ Run A3 *and* A5 — running one leaves the other's `DATA`/cases file as-is.
 | `--json-out` | _(none)_ | Optional: also dump the computed `DATA` to a `.json` file |
 | `--dataset`, `-d` | `A3` | Dataset key (`A3`/`A5`). Picks the injection markers (`__DATA_BEGIN__` for A3, `__DATA_A5_BEGIN__` for A5) and the cases filename (`cases.js` for A3, `cases_a5.js` for A5), so two datasets can coexist in one `index.html` |
 | `--date` | _(none)_ | Report date string stored in `DATA.date` and shown in the header/footer (e.g. `2026-09-19`) |
-| `--total` | _(none)_ | Total (总量) workbook for the top-of-page 「用例总览」 (看护策略 card). Injects `TOTAL_OVERVIEW` between `__TOTAL_BEGIN__`/`__TOTAL_END__`; omitted, the template keeps its `null` placeholder |
-| `--total-status` | `summary_report.xlsx` next to `--total` (if present) | Tracking workbook for the Total data (used to resolve the `Should Not Do` file set for the 看护策略 `社区日落用例` term) |
+| `--total` | _(none)_ | Total (总量) workbook. Generates **both** the top-of-page 「用例总览」 看护策略 card (`TOTAL_OVERVIEW`, injected between `__TOTAL_BEGIN__`/`__TOTAL_END__`) **and** the full 总量用例 scenario — `DATA_TOTAL` (between `__DATA_TOTAL_BEGIN__`/`__DATA_TOTAL_END__`) plus `cases_total.js` (`window.CASES`/`window.FILES`). Omitted, the template keeps its `null` placeholders |
+| `--total-status` | `summary_report.xlsx` next to `--total` (if present) | Tracking workbook for the Total data. Resolves `Should Not Do` (Priority) into the SND 文件集合: their cases are excluded from the 总量用例 scenario's case counts **and** from the 看护策略 `社区跳过用例`/`黑名单跳过用例` terms (so `目标看护用例` == `passed+failed+timeout+error`); also attaches status/priority/assignee to the 总量用例 测试文件 tab |
+| `--total-date` | `--date` | Report date for the Total scenario (`DATA_TOTAL.date` / `TOTAL_OVERVIEW.date`; e.g. `2026-09-23` while the A3 `--date` is `2026-09-26`) |
 
 Dependencies: `openpyxl` only (`pip3 install openpyxl`).
 
@@ -77,21 +78,56 @@ Dependencies: `openpyxl` only (`pip3 install openpyxl`).
 
 The page opens with a fixed 「用例总览」 section fed by the **Total** (总量)
 workbook (via `--total`), independent of the A3/A5 dataset switch. It shows a single
-看护公式 card (no title/subtitle — the 看护用例 result chip sits left of `=`, then the
-four subtract terms as chips) — the reconciliation
-`看护用例 = 社区总量用例 − 社区跳过用例 − 黑名单跳过用例 − 社区日落用例`, where
-`社区总量用例` = Σ `实际运行数量` (= `all_testcases` rows),
-`社区跳过用例` = `all_testcases` rows with 执行结果 `skipped`,
-`黑名单跳过用例` = `all_testcases` rows whose `不支持` (黑名单) column is `是`, and
-`社区日落用例` = collected cases (`实际运行数量`) of files whose tracked priority is
-`Should Not Do` (sunset files, from `--total-status`). `build_total()` computes this.
+看护公式 card (no title/subtitle) rendered as a **two-row grid** with two tall, emphasized boxes —
+`社区总量用例` (blue, `.wf-result`) in the middle and `目标看护用例` (green, `.wf-watch`) on the right —
+both stretched to span the two rows (`grid-row:1/3`, `.wf-tall`) with a **larger bold** number
+(`font-size:1.5rem`, `font-weight:700`). The three term chips `社区日落用例` / `社区跳过用例` /
+`黑名单跳过用例` (`.wf-muted`) are de-emphasized — smaller, grey text — while `收集用例` stays at the
+default (dark number and label) as the source total. The top row carries `收集用例 − 社区日落用例 =` (`.watch-lhs`, column 1); the bottom row
+carries `− 社区跳过用例 − 黑名单跳过用例 =` (`.watch-rhs`, column 3):
+
+`收集用例 − 社区日落用例 = [社区总量用例]`
+`[社区总量用例] − 社区跳过用例 − 黑名单跳过用例 = [目标看护用例]`
+
+The `社区总量用例` box appears exactly once — the top row defines it, the bottom row consumes it.
+
+Only the two result boxes are coloured: `社区总量用例` blue (`.wf-result`, `var(--gen-yes)`) and
+`目标看护用例` green (`.wf-watch`, `#16a34a`). The three term chips (`社区日落用例` /
+`社区跳过用例` / `黑名单跳过用例`) carry `.wf-muted` (neutral surface, smaller grey text) so they recede,
+while `收集用例` uses the un-muted style (dark number and label) since it is the source total.
+`.watch-flow` is a 4-column × 2-row grid (`justify-content:center`): `.watch-lhs` (col 1, row 1) →
+社区总量用例 (col 2, rows 1–2) → `.watch-rhs` (col 3, row 2) → 目标看护用例 (col 4, rows 1–2);
+`.watch-body` is a centered column (`flex-direction:column; align-items:center`), so the whole formula
+centers as a group.
+
+where `收集用例` (原社区总量用例, shown as a tooltip on the 收集用例 chip) = Σ
+`实际运行数量` (= `all_testcases` rows), `社区总量用例` = `收集用例 − 社区日落用例`
+(the shared middle box), `社区跳过用例` = `all_testcases` rows with 执行结果
+`skipped`, `黑名单跳过用例` = `all_testcases` rows whose `不支持` (黑名单) column is `是`,
+and `社区日落用例` = collected cases (`实际运行数量`) of files whose tracked priority is
+`Should Not Do` (sunset files, from `--total-status`). **`社区跳过用例` and `黑名单跳过用例`
+each exclude the Should Not Do files' rows** — those cases are already fully subtracted via
+`社区日落用例`, so excluding them here keeps them from being double-subtracted. `build_total()`
+computes `collected` / `community_skip` / `blocklist` / `snd` / `result`; the frontend derives the
+`社区总量用例` intermediate as `collected − snd`.
+
+**Should Not Do 口径 (总量).** For the Total (总量) data, every file whose tracked
+`Priority == "Should Not Do"` (社区日落 / 废弃模块·历史遗留) is sunset, so its cases are excluded
+from the 总量用例 scenario's *case-level* numbers: `build_two_tier()` is called with
+`exclude_files = SND 文件路径集合`, dropping those files' cases from 概览 用例维度 / 各模块条 /
+明细树 / `cases_total` (so `cases_total` == 社区总量用例, not 收集用例). The 测试文件 tab still
+lists those files (Priority 列标注 `Should Not Do`, 保留其原始 `实际运行数量`) — they only stop
+counting toward the case totals. `build_total()` keeps the top 看护公式 in terms of the raw
+`收集用例`, subtracts the SND cases in full via `社区日落用例`, and (as above) excludes the SND
+files' rows from `社区跳过用例`/`黑名单跳过用例`, so `目标看护用例 == passed + failed + timeout + error`
+in exact agreement with the scenario's 用例执行结果分布.
 
 (The 用例分布 公共/CPU/PU1 pie-chart card was removed; `build_total()` still emits a
 `dist` field with the pre-collection split, but the frontend no longer renders it.)
 
 Below 用例总览 there are **two cards**: the 用例总览 card (a normal rounded card, `margin-bottom` for
-separation) and, below it, a single `.scenario-content` card that wraps both the 总量用例 / 社区解耦用例
-views. The two 场景 tabs (总量用例 / 社区解耦用例) are shaped as regular trapezoids (正梯形 — narrow top,
+separation) and, below it, a single `.scenario-content` card that wraps both the 总量用例 / 解耦用例
+views. The two 场景 tabs (总量用例 / 解耦用例) are shaped as regular trapezoids (正梯形 — narrow top,
 wide bottom) and sit as a sibling row **sticking up from the top edge of the content card** (aligned to the
 card's content, overlapping its top border by 1px via a negative bottom margin). Each tab is a
 `<button class="scenario-tab">` containing an inline `<svg class="sc-tab-shape">` (a `<polyline
@@ -106,10 +142,13 @@ the same 1px outline on all four sides. The two tabs overlap (a negative `margin
 `gap` is unreliable, so margin is used instead) and the active tab is layered above the inactive one
 (`z-index`); the active/inactive distinction is text
 only (active = bold primary-coloured text, inactive = grey, hover lightens the fill). The tabs are global —
-they hide/show the whole content area (the 概览 / 用例详情 / 测试文件 tabs and their views). **总量用例**
-shows a placeholder (its 概览/用例详情/测试文件 data is not yet generated); **社区解耦用例** shows the
-existing content. Client-side only (`localStorage["npu-dash-scenario"]`); selecting 社区解耦用例 re-runs
-`renderAll()` so the width-measured module bars repaint.
+they switch the **dataset** and reload the page: **总量用例** → `?dataset=TOTAL` (loads `cases_total.js`),
+**解耦用例** → `?dataset=A3` (loads `cases.js`; `A5` remains a community-decoupling variant behind the
+header A3/A5 toggle). The 概览 / 用例详情 / 测试文件 views are a single shared DOM that re-renders against
+the active dataset's `DATA` / `window.CASES` / `window.FILES`. The **用例解耦进度** card renders only for
+the community-decoupling scenario (A3/A5) and is hidden for 总量用例 (`renderCollectProgress()` short-circuits
+when `window.__DASH_DATASET__ === "TOTAL"`, because its target 社区总量用例 comes from the Total data itself
+and would exceed 100%).
 
 ## Input schema (the raw workbook)
 
@@ -136,7 +175,7 @@ column is the finer sub-division in both layouts.
   | `Classification` | `Classification` | Coarse module (`Core`/`Tensor Operators`/`Tensor Types`/…); used only as the module fallback when `sheet` is absent |
   | `Specialization` | `Specialization` | Fine sub-division (e.g. `Autograd`, `NN`, `CPU`, `Tools`) |
   | `File` | `File` | Test file path |
-  | `num` | `num` or `实际运行数量` | Matched case count for that file (`0` → 未泛化); renamed `实际运行数量` in the 2026-09-10 export. Shown in the 测试文件 tab as 已泛化用例数 (black) |
+  | `num` | `num` or `实际运行数量` | Matched case count for that file (`0` → 未泛化/无用例文件); renamed `实际运行数量` in the 2026-09-10 export. Shown in the 测试文件 tab as 已泛化用例数 (black) |
   | `pub` | `预收集-公共用例` | Common (公共) pre-collected case count (shown in the 测试文件 tab); added in the 2026-09-17 export |
   | `cpu` | `CPU预收集` or `预收集-仅CPU` | CPU pre-collected case count (shown in the 测试文件 tab); renamed `预收集-仅CPU` in the 2026-09-17 export |
   | `npu` | `NPU预收集` or `预收集-仅NPU` | NPU pre-collected case count (shown in the 测试文件 tab); renamed `预收集-仅NPU` in the 2026-09-17 export |
@@ -205,10 +244,11 @@ their sheet). The 2026-09-02 sample resolves to:
 
 ```text
 files_total     = unique File values in all_files                 (1202)
-files_gen       = unique File values with num > 0                 (126)
-files_snd       = ungeneralized files whose Priority == "Should Not Do" (174)
-files_na        = files_total - files_gen - files_snd             (902, 未泛化)
-files_gen_rate  = files_gen / (files_gen + files_na) × 100, 1 dec (12.3%)
+files_gen       = unique File values with num > 0 **and** Priority != "Should Not Do" (126)
+files_snd       = all files whose Priority == "Should Not Do", regardless of num (174)
+files_na        = files with num == 0, pre-collection > 0, Priority != "Should Not Do" (未泛化, 需泛化)
+files_nocase    = files with num == 0, pre-collection == 0, Priority != "Should Not Do" (无用例文件)
+files_gen_rate  = files_gen / (files_gen + files_na) × 100, 1 dec — 分母不含 无用例文件 / Should Not Do
 
 cases_total     = rows in all_testcases + blacklisted cases       (179066)
 cases.passed|failed|timeout|error = executed rows by 执行结果
@@ -223,23 +263,27 @@ cases_pass_rate = cases.passed / watch_total × 100, 1 decimal     (看护通过
 
 per module (grouped by sheet name):
   files        = unique File values in that module
-  gen_files    = unique File values in that module with num > 0
-  snd_files    = ungeneralized files in that module with Priority == "Should Not Do"
-  na_files     = files - gen_files - snd_files
+  gen_files    = unique File values in that module with num > 0 **and** Priority != "Should Not Do"
+  snd_files    = all files in that module with Priority == "Should Not Do", regardless of num
+  na_files     = files in that module with num == 0 and pre-collection > 0 (未泛化, 需泛化)
+  nocase_files = files in that module with num == 0 and pre-collection == 0 (无用例文件)
   gen_cases    = collected cases in that module (= sum of the 6 statuses)
   passed/failed/skipped/blacklist_unsupported/timeout/error = collected rows by status
 ```
 
-> A file is generalized, needs generalization, or is marked 无需泛化 — it is never
-> counted in more than one file-level tier. `na_files` always equals
-> `files - gen_files - snd_files`; `sum(gen_files) == files_gen` and
-> `sum(snd_files) == files_snd`, and `sum(num) == executed case rows`
-> (all_testcases rows — `num` is the 已泛化用例数 and does *not* include the
-> blacklist, which is folded into `cases_total` separately). The 已泛化/未泛化
-> split is driven purely by executed `num`; 无需泛化 is then the subset of 未泛化
-> whose `Priority == "Should Not Do"`. So a file with *only* blacklisted cases
-> (e.g. `test_jit.py`, 30 blacklist entries) still reads as 未泛化 at the file
-> level while its blacklist cases appear in the case detail tree.
+> A file is generalized, needs generalization, is a no-case file, or is marked
+> 无需泛化 — it is never counted in more than one file-level tier. `files_total` equals
+> `files_gen + files_na + files_nocase + files_snd`, and per module
+> `files == gen_files + na_files + nocase_files + snd_files`. The 已泛化/未泛化
+> split is driven by executed `num`, but the two excluded tiers are classified
+> **first**: every file whose `Priority == "Should Not Do"` is folded into its own
+> tier (regardless of `num`), and every remaining file with `num == 0` and no
+> pre-collection cases (公共+CPU+NPU all zero) is a 无用例文件 — neither of these
+> two tiers counts into `files_gen_rate`, whose denominator is 已泛化 + 未泛化 only.
+> So a Should Not Do file that is fully collected still reads as Should Not Do
+> (not 已泛化), a no-case file reads as 无用例文件 (not 未泛化), and a file with
+> *only* blacklisted cases (e.g. `test_jit.py`, 30 blacklist entries) still reads
+> as 未泛化 at the file level while its blacklist cases appear in the case detail tree.
 
 ## How the two files are produced
 
@@ -297,8 +341,8 @@ regeneration leaves them unchanged:
     `blacklist_unsupported` and `not_executed` segments are drawn lightened (muted)
     to downplay the non-看护 statuses (via a `lighten()` helper, legend dots
     matched). Each module row also draws a thin blue **收集目标** bar above the
-    stacked bar — the module's should-collect total (`公共 + CPU + NPU` 预收集, same
-    口径 as the overview `用例目标`) — as a non-clickable reference on the same axis;
+    stacked bar — the module's should-collect total (`公共 + CPU + NPU` 预收集) — as a
+    non-clickable reference on the same axis;
     the Should Not Do portion of that total is drawn in a lighter blue so the
     should-collect / Should Not Do split stays visible, and the axis max is
     `max(已收集最大值, 目标最大值)`. Both bars are equal height. Hovering the 收集目标
@@ -310,15 +354,13 @@ regeneration leaves them unchanged:
     module + result;
     the 合计 row filters by the global (all-module) + result. Cells of zero-case
     modules are rendered plain (not clickable).
-- **无需泛化 (Should Not Do) handling.** 无需泛化 files — `gen==0 && Priority=="Should Not Do"`
-  (`files_snd`) — don't need generalization. Two distinct case metrics apply, both computed
-  client-side by `sndCaseTotals(files)`:
-  - **pre-collection** (`total`/`pub`/`cpu`/`npu` = `公共 + CPU + NPU` 预收集) — excluded from
-    the 收集目标 donut target and drawn as a muted「不计入目标（Should Not Do）」legend entry with a
-    smaller 公共/CPU/PU1 sub-breakdown on one line; the module 收集目标 bars shade this portion
-    lighter blue.
-  - **collected** (`num` = `实际运行数量`, i.e. 收集出来的用例) — excluded from the 收集测试用例
-    tile; it is 0 because these files are never actually collected.
+- **Should Not Do handling.** Files with `Priority=="Should Not Do"` (社区日落) don't count toward
+  the should-collect target: their 公共/CPU/NPU 预收集 cases are shaded lighter blue in the module
+  收集目标 bars, and `sndCaseTotals(files)` computes the per-module share client-side. This applies
+  uniformly to both 总量用例 and 解耦用例 — the light-blue share covers *every* SND file's
+  pre-collection, not just the ungeneralized ones. `sndCaseTotals` returns two metrics:
+  `total`/`pub`/`cpu`/`npu` = pre-collection for the 收集目标 bars, and `num` = `实际运行数量`
+  collected cases for the 收集测试用例 tile's "剔除 Should Not Do 的用例" figure.
 - **Details filters.** The details toolbar has four filters — text search
   (module/file/nodeid), a module filter, a status filter (with a combined
   `timeout_error` option), and a skip-category filter (the distinct `skip分类`
@@ -331,18 +373,18 @@ regeneration leaves them unchanged:
   whose children are that module's files, each showing path followed by fixed-width
   trailing columns in order 已泛化用例数 (num, black) / 公共收集 / CPU预收集 / NPU预收集 / assignee /
   status tag (Done/In Progress/Todo/Backlog) / priority tag
-  (High/Medium/Low/Should Not Do) / 已泛化·未泛化 badge — every column always rendered
-  so they line up vertically, empty when a value is missing; a `.tree-head` header
-  row labels the columns). Its toolbar has a text search plus **multi-select**
-  checkbox dropdowns for module, gen-status (全部/已泛化/未泛化/Should Not Do), status
+  (High/Medium/Low/Should Not Do) / 已泛化·未泛化·无用例文件·Should Not Do badge — every column
+  always rendered so they line up vertically, empty when a value is missing; a
+  `.tree-head` header row labels the columns). Its toolbar has a text search plus **multi-select**
+  checkbox dropdowns for module, gen-status (全部/已泛化/未泛化/无用例文件/Should Not Do), status
   (全部状态/Done/In Progress/Todo/Backlog/未跟踪), priority (全部优先级/High/Medium/Low/
   Should Not Do/无优先级), and assignee (全部负责人/…/未分配, populated from the
   distinct assignees), all combined with AND. The `none` option in the status /
   priority / assignee filters means "empty field" (未跟踪 / 无优先级 / 未分配).
   The file-level charts drill down into it via `window.openFilesTab(filter)`:
-  - 文件泛化率 donut slice / legend item → filter by gen status (已泛化 / 未泛化 / Should Not Do).
-  - 各模块文件泛化情况 bar segment → filter by module + gen status; a module row's
-    grey (未泛化) area → filter by module only.
+  - 文件泛化率 donut slice / legend item → filter by gen status (已泛化 / 未泛化 / 无用例文件 / Should Not Do).
+  - 各模块文件泛化情况 bar segment → filter by module + gen status (已泛化 / 未泛化 /
+    无用例文件 / Should Not Do); a module row's empty (non-segment) area → filter by module only.
   - Clicking a generalized file row (its file label or 已泛化用例数) →
     `window.openCaseFile(module, file)`, which jumps to 用例详情 filtered to that
     file's cases; the 公共收集 / CPU预收集 / NPU预收集 columns are muted display-only
@@ -377,9 +419,10 @@ and one line per module (files / gen / na / cases / P / F / S / T / E / B).
 
 Check against the printed summary:
 
-- `files_gen + files_snd + files_na == files_total`, and sum of per-sheet `files == files_total`
+- `files_gen + files_na + files_nocase + files_snd == files_total`, and sum of per-sheet `files == files_total`
 - sum of per-sheet `gen_files == files_gen`, per-sheet `snd_files == files_snd`,
-  and per-sheet `na_files == files - gen_files - snd_files`
+  per-sheet `na_files == files_na`, per-sheet `nocase_files == files_nocase`,
+  and per module `gen_files + na_files + nocase_files + snd_files == files`
 - sum of per-sheet `gen_cases == cases_total`, and
   `passed+failed+skipped+blacklist_unsupported+timeout+error == cases_total`
 - 看护通过率 `passed / watch_total` matches the pie center and the 模块详情汇总 通过率 column
@@ -391,19 +434,18 @@ Open `index.html` in a browser (works offline, no CDN; `cases.js` must be in the
 same folder as `index.html`). Confirm:
 
 - Overview top: the 用例总览 section (a single 看护策略 card from `TOTAL_OVERVIEW`) fixed at the top
-  of the page, followed by the 总量用例/社区解耦用例 场景 tabs (正梯形页签, sticking up from the top edge
+  of the page, followed by the 总量用例/解耦用例 场景 tabs (正梯形页签, sticking up from the top edge
   of the single `.scenario-content` card below, both tabs' outlines continuous with that card; global —
-  controls the 概览/用例详情/测试文件 tabs below); in the 社区解耦用例 scenario, the 用例收集进度 card — a target-composition donut on the left (titled
-  `用例目标`; 公共用例 / CPU泛化用例 / PU1泛化用例 sized by share of the 目标, with the 无需泛化
-  预收集 excluded and shown as a muted「不计入目标（Should Not Do）」legend entry plus a smaller
-  公共/CPU/PU1 sub-breakdown; same size as the 用例执行结果分布 pie) and the 收集进度 bar on the
-  right (已收集 = 实际运行 + blacklist_total（含 Running Skiped，展示时并入 skipped）, 目标 = 公共 + CPU + NPU 收集 − 无需泛化预收集; 已收集/目标
-  counts and the percentage sit on one line above the bar); both are computed client-side from
-  `window.FILES`. The 4 summary tiles live inside this card as a 2×2 grid (the former 失败用例数
+  reload-based dataset switch driving the 概览/用例详情/测试文件 tabs below); in the 解耦用例 scenario,
+  the 用例解耦进度 card — a 解耦进度 bar (已收集 = 实际运行 + blacklist_total（含 Running Skiped，展示时并入
+  skipped）; 目标 = 社区总量用例 = 收集用例 − 社区日落用例, from `TOTAL_OVERVIEW`; 已收集/目标 counts and the
+  percentage sit on one line above the bar) (the 用例目标 donut was removed). This card is **hidden** in the
+  总量用例 scenario.
+  The 4 summary tiles live inside this card as a single 1×4 row (the former 失败用例数
   tile was removed), in order:
-  应收集的测试文件 (`files_total - files_snd`, sub 总量 `files_total` 含 Should Not Do 文件 `files_snd`) /
-  收集测试用例 (`cases_total - snd.num`, sub 含 blacklist `blacklist_unsupported`，其中剔除 Should Not Do 的
-  用例 `snd.num`) / 已泛化文件 (`files_gen`, sub 泛化率) / 看护用例数 (通过 + 失败 + 错误/超时).
+  应解耦文件 (`files_total - files_snd`, sub 总量 `files_total` 含 Should Not Do 文件 `files_snd`) /
+  已解耦文件 (`files_gen`, sub 泛化率) / 收集测试用例 (`cases_total - snd.num`, sub 含 blacklist
+  `blacklist_unsupported`，其中剔除 Should Not Do 的 用例 `snd.num`) / 看护用例数 (通过 + 失败 + 错误/超时).
 - Case-level: 用例执行结果分布 donut + 各模块用例执行结果 stacked bar (each row topped by a blue
   收集目标 reference bar) + 模块详情汇总 table
   (columns 模块 / 文件 / 已泛化 / 收集用例 / Passed / Failed / Skipped / Blacklist / Timeout / Error / 通过率,
@@ -413,7 +455,7 @@ same folder as `index.html`). Confirm:
 - 用例详情 tab: drill-down 模块 → 文件 → 用例 (nodeid + 执行结果), with search / module / status /
   skip-category filters and chunked "加载更多" per file; blacklisted cases show their `skip分类`
   as a compact chip (the `skip原因` in its tooltip, keeping rows uncluttered)
-- 测试文件 tab: files grouped by module (collapsible), each file showing path / 已泛化·未泛化
+- 测试文件 tab: files grouped by module (collapsible), each file showing path / 已泛化·未泛化·无用例文件·Should Not Do
   badge / case count, with search, module, and gen-status filters
 - Clicking a case-donut slice/legend, a module-bar segment, a 模块详情汇总 table cell, or a
   file-level donut/bar segment jumps to 用例详情 / 测试文件 with the matching filter; hovering
@@ -435,5 +477,5 @@ same folder as `index.html`). Confirm:
   the dashboard, so the generator no longer emits them. If those charts are
   re-added, derive them from the `Specialization` (grouped case counts) and
   `不支持原因` (grouped counts) columns and re-add them inside the markers.
-- The dashboard is **two-tier by design**: 未泛化 entries are file-level only
-  (no nodeid) and are excluded from all execution percentages.
+- The dashboard is **two-tier by design**: 未泛化 / 无用例文件 entries are
+  file-level only (no nodeid) and are excluded from all execution percentages.
