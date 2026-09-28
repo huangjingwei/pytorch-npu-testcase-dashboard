@@ -425,6 +425,11 @@ regeneration leaves them unchanged:
     `window.openCaseFile(module, file)`, which jumps to 用例详情 filtered to that
     file's cases; the 公共收集 / CPU预收集 / NPU预收集 columns are muted display-only
     and not clickable.
+- **各模块文件泛化情况 bar sizing.** Each module row draws a horizontal stacked bar of
+  已泛化 / 未泛化 / 无用例文件 / Should Not Do file counts (axis max = the largest module's
+  `files`), capped at 14px tall (`barH = Math.min(14, …)`, 6px gaps); to its right the
+  `已泛化/已泛化+未泛化` ratio label is drawn 6px past the bar's right edge, and `padR=80`
+  reserves the room so it never overflows the canvas.
 - **Hover highlight (no border).** Hovering a donut slice pops it outward 5px while
   others dim to 30% opacity; hovering a stacked-bar segment dims the rest and bolds
   the module label. Applies to both the case charts and the file charts (文件泛化率

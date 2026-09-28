@@ -624,18 +624,18 @@ body.no-data #empty-state{display:flex}
 // ================================================================
 const DATA_A3_DECOUPLE = /*__DATA_A3_DECOUPLE_BEGIN__*/
 {
-  "files_total": 1227,
-  "files_gen": 311,
-  "files_na": 659,
+  "files_total": 1228,
+  "files_gen": 312,
+  "files_na": 660,
   "files_gen_rate": 32.1,
-  "cases_total": 269653,
+  "cases_total": 269662,
   "cases": {
-    "passed": 202612,
-    "failed": 11126,
+    "passed": 202619,
+    "failed": 11130,
     "skipped": 37746,
     "not_executed": 0,
     "timeout": 0,
-    "error": 201,
+    "error": 199,
     "blacklist_unsupported": 17968
   },
   "blacklist_total": 19456,
@@ -655,8 +655,8 @@ const DATA_A3_DECOUPLE = /*__DATA_A3_DECOUPLE_BEGIN__*/
       "gen_files": 32,
       "na_files": 12,
       "gen_cases": 13144,
-      "passed": 9682,
-      "failed": 635,
+      "passed": 9678,
+      "failed": 639,
       "skipped": 1903,
       "not_executed": 0,
       "timeout": 0,
@@ -684,8 +684,8 @@ const DATA_A3_DECOUPLE = /*__DATA_A3_DECOUPLE_BEGIN__*/
       "files": 536,
       "gen_files": 164,
       "na_files": 254,
-      "gen_cases": 70301,
-      "passed": 47958,
+      "gen_cases": 70308,
+      "passed": 47965,
       "failed": 4112,
       "skipped": 18130,
       "not_executed": 0,
@@ -711,9 +711,9 @@ const DATA_A3_DECOUPLE = /*__DATA_A3_DECOUPLE_BEGIN__*/
       "nocase_files": 0
     },
     "Other": {
-      "files": 116,
+      "files": 117,
       "gen_files": 20,
-      "na_files": 90,
+      "na_files": 92,
       "gen_cases": 3061,
       "passed": 2890,
       "failed": 82,
@@ -723,14 +723,14 @@ const DATA_A3_DECOUPLE = /*__DATA_A3_DECOUPLE_BEGIN__*/
       "error": 0,
       "blacklist_unsupported": 0,
       "snd_files": 0,
-      "nocase_files": 6
+      "nocase_files": 5
     },
     "Quantization": {
       "files": 43,
-      "gen_files": 18,
-      "na_files": 25,
-      "gen_cases": 254,
-      "passed": 184,
+      "gen_files": 19,
+      "na_files": 24,
+      "gen_cases": 256,
+      "passed": 186,
       "failed": 70,
       "skipped": 0,
       "not_executed": 0,
@@ -745,12 +745,12 @@ const DATA_A3_DECOUPLE = /*__DATA_A3_DECOUPLE_BEGIN__*/
       "gen_files": 26,
       "na_files": 6,
       "gen_cases": 181650,
-      "passed": 141029,
+      "passed": 141031,
       "failed": 6207,
       "skipped": 17436,
       "not_executed": 0,
       "timeout": 0,
-      "error": 3,
+      "error": 1,
       "blacklist_unsupported": 16975,
       "snd_files": 37,
       "nocase_files": 0
@@ -772,24 +772,24 @@ const DATA_A3_DECOUPLE = /*__DATA_A3_DECOUPLE_BEGIN__*/
     }
   },
   "files_snd": 181,
-  "files_nocase": 76,
+  "files_nocase": 75,
   "module_target": {
-    "Core": 39922,
-    "Distributed": 9201,
-    "Graph": 253908,
+    "Core": 39964,
+    "Distributed": 9202,
+    "Graph": 254148,
     "Math": 23225,
-    "Other": 5458,
+    "Other": 5560,
     "Quantization": 2471,
-    "Tensor": 211294,
-    "Utils": 25635
+    "Tensor": 211415,
+    "Utils": 25730
   },
   "module_snd_target": {
     "Core": 26,
-    "Graph": 21585,
+    "Graph": 21589,
     "Tensor": 10285,
-    "Utils": 549
+    "Utils": 561
   },
-  "date": "2026-09-26",
+  "date": "2026-09-28",
   "dataset": "A3_DECOUPLE"
 }
   /*__DATA_A3_DECOUPLE_END__*/;
@@ -1217,8 +1217,8 @@ function renderFileModules(){
   const{ctx,w,h}=setupCanvas(canvas,W,H);
   const names=Object.keys(DATA.sheets);
   const maxVal=Math.max(...names.map(n=>DATA.sheets[n].files));
-  const padL=80,padR=48,padT=8,padB=20;
-  const plotW=w-padL-padR,barH=Math.min(16,(h-padT-padB)/names.length-6),gap=6;
+  const padL=80,padR=80,padT=8,padB=20;
+  const plotW=w-padL-padR,barH=Math.min(14,(h-padT-padB)/names.length-6),gap=6;
   function xPos(v){return padL+(v/maxVal)*plotW}
 
   ctx.strokeStyle=getCSS("--gridline");ctx.lineWidth=1;
