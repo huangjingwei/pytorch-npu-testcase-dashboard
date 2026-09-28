@@ -1134,7 +1134,7 @@ function renderFileDonut(){
   const SIZE=200;
   const{ctx,w,h}=setupCanvas(canvas,SIZE,SIZE);
   const cx=w/2,cy=h/2,outerR=Math.min(cx,cy)-6,innerR=outerR*0.55;
-  const gapAngle=0.03;
+  const gapAngle=0;
 
   const items=[
     {label:"已泛化",value:DATA.files_gen,color:getCSS("--gen-yes"),gen:1},
@@ -1161,7 +1161,6 @@ function renderFileDonut(){
     ctx.globalAlpha=(hovered!==null && !isHover)?0.3:1;
     ctx.fillStyle=item.color;ctx.fill();
     ctx.globalAlpha=1;
-    ctx.lineWidth=2;ctx.strokeStyle=getCSS("--surface-card");ctx.stroke();
     slices.push({startAngle,endAngle:startAngle+sliceAngle,item,outerR,innerR,cx,cy});
     startAngle+=sliceAngle;
   });
@@ -1391,7 +1390,6 @@ function renderCasePie(){
     ctx.fillStyle=item.color;
     ctx.fill();
     ctx.globalAlpha=1;
-    ctx.lineWidth=2;ctx.strokeStyle=getCSS("--surface-card");ctx.stroke();
     slices.push({startAngle,endAngle:startAngle+sliceAngle,item,outerR,innerR,cx,cy});
     startAngle+=sliceAngle;
   }
@@ -1536,9 +1534,9 @@ function renderModules(){
       const total=caseTotal(sh);
       const pct=total/denom*100;
       ctx.textAlign="left";ctx.textBaseline="middle";
-      ctx.font="10px system-ui,-apple-system,sans-serif";
+      ctx.font=(barH+3)+"px system-ui,-apple-system,sans-serif";
       ctx.fillStyle=total>0?getCSS("--text-secondary"):getCSS("--text-muted");
-      ctx.fillText(pct.toFixed(1)+"%",xOffset+6,barY+barH/2);
+      ctx.fillText(pct.toFixed(1)+"%",xOffset+6,barY+barH/2+1);
     }
     const labelSel=hovered && hovered.module===name;
     ctx.fillStyle=labelSel?getCSS("--text-primary"):getCSS("--text-secondary");

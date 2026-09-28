@@ -379,7 +379,9 @@ regeneration leaves them unchanged:
     stacked bar each row shows a percentage — the module's collected cases
     (`caseTotal(sh)`) as a share of its 收集目标 **excluding the Should Not Do portion**
     (`target − snd`), i.e. `caseTotal / (target − snd) × 100%`, drawn in a muted
-    secondary color. Hovering the 收集目标
+    secondary color, vertically centred on the bar's middle line with the font
+    scaled to the bar height (`barH+3` px). The case and file donut slices are drawn
+    contiguously (no `gapAngle` and no surface-coloured stroke between slices). Hovering the 收集目标
     bar shows a tooltip with its case count (`模块 · 收集目标 / N 用例`, plus the
     Should Not Do count when non-zero) but it stays non-clickable (cursor stays default,
     no drill-down).
