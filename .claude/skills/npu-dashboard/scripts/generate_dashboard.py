@@ -5,12 +5,14 @@ Reads ``all_testcases.xlsx`` (one sheet per module, one row per file/case record
 and produces two files:
 
 - ``index.html`` — the dashboard shell. Contains the small aggregate ``DATA``
-  object (injected between ``__DATA_BEGIN__`` / ``__DATA_END__``) and all
-  rendering code, and loads the case details from a sibling file.
-- ``cases.js`` — a single ``window.CASES = {...}`` assignment holding the compact
-  per-case detail tree (module -> file -> [[nodeid_suffix, result], ...]),
-  plus a flat ``window.FILES = [[module, file, gen, cases, status, priority,
-  assignee], ...]`` list for the 测试文件 tab. This is kept OUT of the HTML so the
+  objects (one per report/scenario, injected between
+  ``__DATA_<REPORT>_<SCENARIO>_BEGIN__`` / ``__DATA_<REPORT>_<SCENARIO>_END__``)
+  and all rendering code, and loads the case details from a sibling file.
+- ``cases_<report>_<scenario>.js`` — a single ``window.CASES = {...}`` assignment
+  holding the compact per-case detail tree (module -> file ->
+  [[nodeid_suffix, result], ...]), plus a flat
+  ``window.FILES = [[module, file, gen, cases, status, priority, assignee], ...]``
+  list for the 测试文件 tab. This is kept OUT of the HTML so the
   shell stays small even when
   there are hundreds of thousands of cases.
 
@@ -51,32 +53,22 @@ COLUMN_SPEC = {
     "result": {"names": ["执行结果"], "fallback": 4},
     "class":  {"names": ["Classification"], "fallback": 0},
     "num":    {"names": ["num", "实际运行数量"], "fallback": 4},
-    "pub":    {"names": ["预收集-公共用例"], "fallback": None},
-    "cpu":    {"names": ["CPU预收集", "预收集-仅CPU"], "fallback": None},
-    "npu":    {"names": ["NPU预收集", "预收集-仅NPU"], "fallback": None},
     "skip_cls":    {"names": ["skip分类"], "fallback": 5},
     "skip_reason": {"names": ["skip原因"], "fallback": 6},
     "unsupported": {"names": ["不支持"], "fallback": None},
 }
 
-DATA_BEGIN = "/*__DATA_BEGIN__*/"
-DATA_END = "/*__DATA_END__*/"
-TOTAL_BEGIN = "/*__TOTAL_BEGIN__*/"
-TOTAL_END = "/*__TOTAL_END__*/"
+def data_markers(report, scenario):
+    """Injection markers for a (report, scenario) pair — ``__DATA_<REPORT>_<SCENARIO>_...``
+    — so all four datasets (A3/A5 × 总量/解耦) coexist in one HTML file."""
+    key = f"{report}_{scenario}"
+    return f"/*__DATA_{key}_BEGIN__*/", f"/*__DATA_{key}_END__*/"
 
 
-def data_markers(dataset):
-    """Injection markers for a dataset key. ``A3`` uses the legacy unsuffixed
-    markers (back-compat with the single-dataset template); any other key gets a
-    ``__DATA_<KEY>_...`` suffix so multiple datasets can live in one HTML file."""
-    suffix = "" if dataset == "A3" else "_" + dataset
-    return f"/*__DATA{suffix}_BEGIN__*/", f"/*__DATA{suffix}_END__*/"
-
-
-def cases_filename(dataset):
-    """Case-detail JS filename for a dataset key (``cases.js`` for A3, else
-    ``cases_<key>.js``)."""
-    return "cases.js" if dataset == "A3" else f"cases_{dataset.lower()}.js"
+def cases_filename(report, scenario):
+    """Case-detail JS filename for a (report, scenario) pair —
+    ``cases_<report>_<scenario>.js`` (report lower-cased)."""
+    return f"cases_{report.lower()}_{scenario.lower()}.js"
 
 
 def _find_column(headers, spec):
@@ -274,9 +266,8 @@ def load_status(path):
 
 def build_total(path, status_path=None):
     """Read the *Total* (总量) workbook and compute the top-of-overview
-    「用例总览」 numbers: the 公共/CPU/PU1 case distribution (pre-collection
-    columns on ``all_files``) and the 看护策略 breakdown, rendered by the
-    frontend as a two-row grid — ``收集用例 − 社区日落用例 = 社区总量用例``
+    「用例总览」 看护策略 numbers, rendered by the frontend as a two-row grid —
+    ``收集用例 − 社区日落用例 = 社区总量用例``
     (top row) and ``社区总量用例 − 社区跳过用例 − 黑名单跳过用例 =
     目标看护用例`` (bottom row) — with ``社区总量用例`` and ``目标看护用例``
     as tall boxes spanning both rows, their numbers larger and bold
@@ -305,29 +296,16 @@ def build_total(path, status_path=None):
     header = next(rows, None)
     col_file = _find_column(header, COLUMN_SPEC["file"])
     col_num = _find_column(header, COLUMN_SPEC["num"])
-    pre = _precollect_names("A3")
-    col_pub = _find_column(header, {"names": pre["pub"], "fallback": None})
-    col_cpu = _find_column(header, {"names": pre["cpu"], "fallback": None})
-    col_npu = _find_column(header, {"names": pre["npu"], "fallback": None})
 
-    dist = {"pub": 0, "cpu": 0, "npu": 0}
     collected = 0
     file_num = {}
-    file_pre = {}
     for row in rows:
         f = _cell(row, col_file)
         if not f:
             continue
-        pub = _to_int(_cell(row, col_pub))
-        cpu = _to_int(_cell(row, col_cpu))
-        npu = _to_int(_cell(row, col_npu))
         num = _to_int(_cell(row, col_num))
-        dist["pub"] += pub
-        dist["cpu"] += cpu
-        dist["npu"] += npu
         collected += num
         file_num[f] = num
-        file_pre[f] = pub + cpu + npu
 
     # 社区日落用例 = collected cases (实际运行数量) of files whose tracked priority
     # is "Should Not Do" (sunset files). Every Should Not Do file is sunset, so its
@@ -368,7 +346,6 @@ def build_total(path, status_path=None):
 
     watch = collected - community_skip - blocklist - snd
     return {
-        "dist": dist,
         "watch": {
             "collected": collected,
             "community_skip": community_skip,
@@ -401,8 +378,6 @@ def build_two_tier(wb, blacklist_path=None, dataset="A3", unsupported_to_blackli
     case-level aggregation entirely — used by the TOTAL build to exclude the
     ``Should Not Do`` files' cases (社区日落用例) so the scenario's case counts
     match the top 「用例总览」 社区总量用例 figure."""
-    all_files = set()
-    all_gen_files = set()
     case_totals = Counter()
     sheets = {}
     detail = {}
@@ -496,7 +471,6 @@ def build_two_tier(wb, blacklist_path=None, dataset="A3", unsupported_to_blackli
     col_unsupported = _find_column(header, COLUMN_SPEC["unsupported"])
 
     module_cases = defaultdict(Counter)
-    module_file_cases = defaultdict(Counter)
     module_detail = defaultdict(dict)
 
     for row in rows:
@@ -525,7 +499,6 @@ def build_two_tier(wb, blacklist_path=None, dataset="A3", unsupported_to_blackli
             result = "error"
         case_totals[result] += 1
         module_cases[module][result] += 1
-        module_file_cases[module][f] += 1
 
         suffix = nodeid[len(f) + 2:] if f and nodeid.startswith(f + "::") else nodeid
         module_detail[module].setdefault(f, []).append([suffix, result])
@@ -563,7 +536,6 @@ def build_two_tier(wb, blacklist_path=None, dataset="A3", unsupported_to_blackli
             skip_cls_by_status[result].append(skip_cls)
         case_totals[result] += 1
         module_cases[module][result] += 1
-        module_file_cases[module][f] += 1
         module_detail[module].setdefault(f, []).append([suffix, result, skip_cls, skip_reason])
 
     # ---- Combine into per-module sheets ----
@@ -798,22 +770,22 @@ def main(argv=None):
     p.add_argument("--output", "-o", default="index.html",
                    help="Output/template HTML (default: index.html)")
     p.add_argument("--cases-out", "-c", default=None,
-                   help="Where to write the case-detail JS (default: <output dir>/cases.js)")
+                   help="Where to write the case-detail JS (default: <output dir>/cases_<report>_decouple.js)")
     p.add_argument("--blacklist", "-b", default=None,
                    help="Blacklist workbook (default: blacklist_testcases.xlsx next to --input, if present)")
     p.add_argument("--status", "-s", default=None,
                    help="Tracking workbook (default: status_tracking.xlsx next to --input, if present); attaches Status/Priority/Assignee to each file")
     p.add_argument("--json-out", help="Optional: also write DATA to a .json file")
     p.add_argument("--dataset", "-d", default="A3",
-                   help="Dataset key (A3/A5) — picks the injection markers and cases filename (default: A3)")
+                   help="Report key (A3/A5) — regenerates that report's 解耦用例 + 总量用例 datasets (default: A3)")
     p.add_argument("--date", default=None,
                    help="Report date string stored in DATA.date, shown in the header/footer (e.g. 2026-09-19)")
     p.add_argument("--total", default=None,
-                   help="Total (总量) workbook for the top 用例总览 (default: none)")
+                   help="The report's Total (总量) workbook — builds the 总量用例 scenario (DATA_<R>_TOTAL + cases_<r>_total.js, watch folded in). Omitted, it stays null/blank")
     p.add_argument("--total-status", default=None,
                    help="Tracking workbook for the Total (总量) data (default: summary_report.xlsx next to --total)")
     p.add_argument("--total-date", default=None,
-                   help="Report date for the Total (总量) scenario DATA_TOTAL.date / TOTAL_OVERVIEW.date (default: --date)")
+                   help="Report date for the Total (总量) scenario DATA_<R>_TOTAL.date (default: --date)")
     args = p.parse_args(argv)
     args.dataset = args.dataset.upper()
 
@@ -851,24 +823,21 @@ def main(argv=None):
 
     if args.date:
         data["date"] = args.date
-    data["dataset"] = args.dataset
+    data["dataset"] = f"{args.dataset}_DECOUPLE"
 
-    begin, end = data_markers(args.dataset)
+    begin, end = data_markers(args.dataset, "DECOUPLE")
     with open(args.output, "r", encoding="utf-8") as f:
         html = f.read()
     html = inject(html, begin, end,
                   "\n" + json.dumps(data, ensure_ascii=False, indent=2) + "\n  ")
 
-    # Total (总量) — when --total is supplied, generate BOTH the top-of-overview
-    # 「用例总览」 formula card (TOTAL_OVERVIEW) and the full 总量用例 scenario
-    # (DATA_TOTAL + cases_total.js), mirroring the community-decoupling dataset.
+    # Total (总量) — when --total is supplied, build the report's 总量用例 scenario
+    # (DATA_<R>_TOTAL + cases_<r>_total.js). The 看护策略 numbers from build_total()
+    # are folded into the scenario object as ``watch`` (one object per scenario; the
+    # separate TOTAL_OVERVIEW object is gone).
     if args.total:
-        total_data = build_total(args.total, total_status)
+        watch_data = build_total(args.total, total_status)
         total_date = args.total_date or args.date
-        if total_date:
-            total_data["date"] = total_date
-        html = inject(html, TOTAL_BEGIN, TOTAL_END,
-                      "\n" + json.dumps(total_data, ensure_ascii=False, indent=2) + "\n  ")
 
         # Should Not Do (无需泛化/废弃) 文件：其优先级为 "Should Not Do"，对应
         # 用例需从总量场景的各用例数量统计中剔除（社区日落用例），与顶部用例总览口径一致。
@@ -878,15 +847,16 @@ def main(argv=None):
                                            unsupported_to_blacklist=True,
                                            exclude_files=snd_files)
         tdata, tfile_list = attach_status_and_fold(tdata, tfile_list, total_status)
+        tdata["watch"] = watch_data.get("watch")
         if total_date:
             tdata["date"] = total_date
-        tdata["dataset"] = "TOTAL"
-        tbegin, tend = data_markers("TOTAL")
+        tdata["dataset"] = f"{args.dataset}_TOTAL"
+        tbegin, tend = data_markers(args.dataset, "TOTAL")
         html = inject(html, tbegin, tend,
                       "\n" + json.dumps(tdata, ensure_ascii=False, indent=2) + "\n  ")
 
         tcases_path = os.path.join(
-            os.path.dirname(args.output) or ".", cases_filename("TOTAL"))
+            os.path.dirname(args.output) or ".", cases_filename(args.dataset, "TOTAL"))
         with open(tcases_path, "w", encoding="utf-8") as f:
             f.write("window.CASES=" +
                     json.dumps(tdetail, ensure_ascii=False, separators=(",", ":")) + ";\n")
@@ -906,12 +876,19 @@ def main(argv=None):
                   f"na={sh['na_files']:>3} cases={sh['gen_cases']:>5} "
                   f"P={sh['passed']:>5} F={sh['failed']:>5} S={sh['skipped']:>4} "
                   f"T={sh['timeout']} E={sh['error']} B={sh['blacklist_unsupported']}")
+    else:
+        # No --total: DATA_<R>_TOTAL stays null in the template, but still emit a
+        # blank cases file so the 总量用例 tab's <script> never 404s.
+        blank_cases = os.path.join(
+            os.path.dirname(args.output) or ".", cases_filename(args.dataset, "TOTAL"))
+        with open(blank_cases, "w", encoding="utf-8") as f:
+            f.write("window.CASES={};window.FILES=[];\n")
 
     with open(args.output, "w", encoding="utf-8") as f:
         f.write(html)
 
     cases_path = args.cases_out or os.path.join(
-        os.path.dirname(args.output) or ".", cases_filename(args.dataset))
+        os.path.dirname(args.output) or ".", cases_filename(args.dataset, "DECOUPLE"))
     with open(cases_path, "w", encoding="utf-8") as f:
         f.write("window.CASES=" +
                 json.dumps(detail, ensure_ascii=False, separators=(",", ":")) + ";\n")

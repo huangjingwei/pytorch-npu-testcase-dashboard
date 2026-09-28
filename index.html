@@ -593,17 +593,28 @@ body.no-data #empty-state{display:flex}
 </div>
 
 <script>
-// Bootstrap: pick the active dataset (URL ?dataset= or localStorage, default TOTAL 总量用例)
-// and synchronously load the matching cases file before the app below runs.
+// Bootstrap: pick the active dataset from the ?report= and ?scenario= URL params
+// (defaults A3 / TOTAL 总量用例) and synchronously load the matching cases file
+// before the app runs. The transient params are stripped after reading, so a plain
+// refresh always returns to the default A3 · 总量用例 instead of remembering the last tab.
 (function () {
-  var p = null;
-  try { p = new URLSearchParams(location.search).get("dataset"); } catch (e) { p = null; }
-  var stored = null;
-  try { stored = localStorage.getItem("npu-dash-dataset"); } catch (e) { stored = null; }
-  var ds = (p || stored || "TOTAL").toUpperCase();
-  if (ds !== "A3" && ds !== "A5" && ds !== "TOTAL") ds = "TOTAL";
-  window.__DASH_DATASET__ = ds;
-  var file = (ds === "A5") ? "cases_a5.js" : (ds === "TOTAL") ? "cases_total.js" : "cases.js";
+  var sp = null;
+  try { sp = new URLSearchParams(location.search); } catch (e) { sp = null; }
+  var report = ((sp && sp.get("report")) || "A3").toUpperCase();
+  if (report !== "A3" && report !== "A5") report = "A3";
+  var scenario = ((sp && sp.get("scenario")) || "TOTAL").toUpperCase();
+  if (scenario !== "TOTAL" && scenario !== "DECOUPLE") scenario = "TOTAL";
+  window.__DASH_REPORT__ = report;
+  window.__DASH_SCENARIO__ = scenario;
+  if (sp && (sp.has("report") || sp.has("scenario"))) {
+    try {
+      var u = new URL(location.href);
+      u.searchParams.delete("report");
+      u.searchParams.delete("scenario");
+      history.replaceState(history.state, "", u.href);
+    } catch (e) {}
+  }
+  var file = "cases_" + report.toLowerCase() + "_" + scenario.toLowerCase() + ".js";
   document.write('<script src="' + file + '"><\/script>');
 })();
 </script>
@@ -611,7 +622,7 @@ body.no-data #empty-state{display:flex}
 // ================================================================
 // DATA
 // ================================================================
-const DATA_A3 = /*__DATA_BEGIN__*/
+const DATA_A3_DECOUPLE = /*__DATA_A3_DECOUPLE_BEGIN__*/
 {
   "files_total": 1227,
   "files_gen": 311,
@@ -779,11 +790,11 @@ const DATA_A3 = /*__DATA_BEGIN__*/
     "Utils": 549
   },
   "date": "2026-09-26",
-  "dataset": "A3"
+  "dataset": "A3_DECOUPLE"
 }
-  /*__DATA_END__*/;
-const DATA_A5 = /*__DATA_A5_BEGIN__*/ null /*__DATA_A5_END__*/;
-const DATA_TOTAL = /*__DATA_TOTAL_BEGIN__*/
+  /*__DATA_A3_DECOUPLE_END__*/;
+const DATA_A5_DECOUPLE = /*__DATA_A5_DECOUPLE_BEGIN__*/ null /*__DATA_A5_DECOUPLE_END__*/;
+const DATA_A3_TOTAL = /*__DATA_A3_TOTAL_BEGIN__*/
 {
   "files_total": 1223,
   "files_gen": 968,
@@ -946,28 +957,26 @@ const DATA_TOTAL = /*__DATA_TOTAL_BEGIN__*/
     "Utils": 549
   },
   "date": "2026-09-23",
-  "dataset": "TOTAL"
-}
-  /*__DATA_TOTAL_END__*/;
-const DATA = (window.__DASH_DATASET__ === "A5") ? DATA_A5 : (window.__DASH_DATASET__ === "TOTAL") ? DATA_TOTAL : DATA_A3;
-const DATA_EMPTY = !DATA || !DATA.sheets || Object.keys(DATA.sheets).length === 0;
-const TOTAL_OVERVIEW = /*__TOTAL_BEGIN__*/
-{
-  "dist": {
-    "pub": 534584,
-    "cpu": 21323,
-    "npu": 11525
-  },
+  "dataset": "A3_TOTAL",
   "watch": {
     "collected": 567438,
     "community_skip": 127195,
     "blocklist": 29562,
     "snd": 32444,
     "result": 378237
-  },
-  "date": "2026-09-23"
+  }
 }
-  /*__TOTAL_END__*/;
+  /*__DATA_A3_TOTAL_END__*/;
+const DATA_A5_TOTAL = /*__DATA_A5_TOTAL_BEGIN__*/ null /*__DATA_A5_TOTAL_END__*/;
+const DATA_MAP = {
+  A3_TOTAL: DATA_A3_TOTAL,
+  A3_DECOUPLE: DATA_A3_DECOUPLE,
+  A5_TOTAL: DATA_A5_TOTAL,
+  A5_DECOUPLE: DATA_A5_DECOUPLE,
+};
+const DATA = DATA_MAP[window.__DASH_REPORT__ + "_" + window.__DASH_SCENARIO__];
+const REPORT_TOTAL = DATA_MAP[window.__DASH_REPORT__ + "_TOTAL"];
+const DATA_EMPTY = !DATA || !DATA.sheets || Object.keys(DATA.sheets).length === 0;
 
 
 const STATUS = {
@@ -1028,12 +1037,14 @@ btnDark.addEventListener("click",()=>setTheme("dark"));
 if(window.matchMedia("(prefers-color-scheme:dark)").matches) setTheme("dark");
 
 // ================================================================
-// DATASET (A3/A5) SWITCH — pick the active report and reload to swap it in.
-// DATA / window.CASES / window.FILES are fixed names; the bootstrap loads the
-// matching cases file for the active dataset, so a switch is a clean page load.
+// REPORT (A3/A5) SWITCH — pick the active report and reload, preserving the
+// current scenario. DATA / window.CASES / window.FILES are fixed names; the
+// bootstrap loads the matching cases file for the (report, scenario) pair.
 // ================================================================
+const REPORT_LABEL = function(){ return window.__DASH_REPORT__ === "A5" ? "A5 报告" : "A3 报告"; };
+const SCENARIO_LABEL = function(){ return window.__DASH_SCENARIO__ === "DECOUPLE" ? "解耦用例" : "总量用例"; };
 function setupDatasetSwitch(){
-  const cur=window.__DASH_DATASET__||"TOTAL";
+  const cur=window.__DASH_REPORT__||"A3";
   const btnA3=document.getElementById("btn-a3"), btnA5=document.getElementById("btn-a5");
   function paint(){
     btnA3.classList.toggle("active",cur==="A3"); btnA5.classList.toggle("active",cur==="A5");
@@ -1041,47 +1052,45 @@ function setupDatasetSwitch(){
   }
   btnA3.addEventListener("click",function(){
     if(cur==="A3") return;
-    try{ localStorage.setItem("npu-dash-dataset","A3"); }catch(e){}
-    const u=new URL(location.href); u.searchParams.set("dataset","A3"); location.assign(u.toString());
+    const u=new URL(location.href); u.searchParams.set("report","A3"); location.assign(u.toString());
   });
   btnA5.addEventListener("click",function(){
     if(cur==="A5") return;
-    try{ localStorage.setItem("npu-dash-dataset","A5"); }catch(e){}
-    const u=new URL(location.href); u.searchParams.set("dataset","A5"); location.assign(u.toString());
+    const u=new URL(location.href); u.searchParams.set("report","A5"); location.assign(u.toString());
   });
   paint();
-  const curLabel=(cur==="TOTAL")?"总量":cur;
   const date=(DATA&&DATA.date)||"—";
   const sub=document.getElementById("header-sub");
-  if(sub) sub.textContent="用例执行结果全景视图 · "+curLabel+" · 更新于 "+date;
+  if(sub) sub.textContent="用例执行结果全景视图 · "+REPORT_LABEL()+" · "+SCENARIO_LABEL()+" · 更新于 "+date;
   const ft=document.getElementById("footer-note");
-  if(ft) ft.textContent="TorchNPU 社区用例看板 · "+curLabel+" · Generated "+date;
+  if(ft) ft.textContent="TorchNPU 社区用例看板 · "+REPORT_LABEL()+" · "+SCENARIO_LABEL()+" · Generated "+date;
+  const es=document.getElementById("empty-state").querySelector(".es-sub");
+  if(es) es.textContent=REPORT_LABEL()+" · "+SCENARIO_LABEL()+" 数据尚未生成，请切换回 A3 报告查看。";
 }
 setupDatasetSwitch();
 
 // ================================================================
-// SCENARIO (总量用例/解耦用例) SWITCH — 场景页签与数据集联动，通过 reload 切换。
-// 总量用例 → ?dataset=TOTAL；解耦用例 → ?dataset=A3（A5 仍为社区解耦的空白变体）。
-// 概览/用例详情/测试文件三个视图共用一套 DOM，随当前 dataset 渲染。
+// SCENARIO (总量用例/解耦用例) SWITCH — 场景页签切换场景，通过 reload 切换，保留当前报告。
+// 总量用例 → ?scenario=TOTAL；解耦用例 → ?scenario=DECOUPLE。
+// 概览/用例详情/测试文件三个视图共用一套 DOM，随当前 (报告, 场景) 渲染。
 // ================================================================
 function setupScenarioSwitch(){
   const totalBtn=document.getElementById("scn-total"), decBtn=document.getElementById("scn-decouple");
   if(!totalBtn||!decBtn) return;
-  const ds=window.__DASH_DATASET__||"TOTAL";
+  const sc=window.__DASH_SCENARIO__||"TOTAL";
   function paint(){
-    const isTotal=(ds==="TOTAL");
+    const isTotal=(sc==="TOTAL");
     totalBtn.classList.toggle("active",isTotal);
     decBtn.classList.toggle("active",!isTotal);
     totalBtn.setAttribute("aria-selected",isTotal);
     decBtn.setAttribute("aria-selected",!isTotal);
   }
   function go(target){
-    if(ds===target) return;
-    try{ localStorage.setItem("npu-dash-scenario", target==="TOTAL"?"total":"decouple"); }catch(e){}
-    const u=new URL(location.href); u.searchParams.set("dataset",target); location.assign(u.toString());
+    if(sc===target) return;
+    const u=new URL(location.href); u.searchParams.set("scenario",target); location.assign(u.toString());
   }
   totalBtn.addEventListener("click",function(){ go("TOTAL"); });
-  decBtn.addEventListener("click",function(){ go("A3"); });
+  decBtn.addEventListener("click",function(){ go("DECOUPLE"); });
   paint();
 }
 setupScenarioSwitch();
@@ -1446,11 +1455,12 @@ function renderModules(){
   const activeKeys=CASE_KEYS.filter(k=>Object.values(DATA.sheets).some(sh=>(sh[k]||0)>0));
   const maxTotal=Math.max(...names.map(n=>caseTotal(DATA.sheets[n])));
   // 应收集目标 = 总量用例（各模块 公共 + CPU + NPU 预收集之和）。「收集目标」表示
-  // 的是总量用例，故总量/解耦两场景统一取自 Total 数据（DATA_TOTAL.module_target /
-  // .module_snd_target），保证蓝色柱数值一致；无 Total 数据时回退本场景文件列表。
+  // 的是总量用例，故总量/解耦两场景统一取自当前报告的 Total 数据
+  // （REPORT_TOTAL.module_target / .module_snd_target），保证蓝色柱数值一致；
+  // 无 Total 数据时回退本场景文件列表。
   const files=window.FILES||[];
-  let tgtByModule=(DATA_TOTAL && DATA_TOTAL.module_target) || null;
-  let sndByModule=(DATA_TOTAL && DATA_TOTAL.module_snd_target) || null;
+  let tgtByModule=(REPORT_TOTAL && REPORT_TOTAL.module_target) || null;
+  let sndByModule=(REPORT_TOTAL && REPORT_TOTAL.module_snd_target) || null;
   if(!tgtByModule){
     tgtByModule={};
     for(let i=0;i<files.length;i++){
@@ -1463,7 +1473,7 @@ function renderModules(){
   }
   const maxTarget=Math.max(0,...names.map(n=>tgtByModule[n]||0));
   const maxVal=Math.max(1,maxTotal,maxTarget);
-  const padL=80,padR=20,padT=10,padB=24;
+  const padL=80,padR=48,padT=10,padB=24;
   const plotW=w-padL-padR;
   const tgtGap=2,gap=12;
   const rowH=(h-padT-padB)/names.length;
@@ -1517,10 +1527,19 @@ function renderModules(){
       ctx.fillStyle=barColor(k);
       roundRect(ctx,xOffset,barY,bw,barH,0);ctx.fill();
       ctx.globalAlpha=1;
-      if(xOffset>padL){ctx.fillStyle=getCSS("--surface-card");ctx.fillRect(xOffset-1,barY,2,barH)}
       barData.push({x:xOffset,y:barY,w:bw,h:barH,status:k,name,val});
       xOffset+=bw;
     });
+    // 下方堆叠条用例数占上方「收集目标」蓝色柱（剔除 Should Not Do）的比例
+    const denom=tv-sndV;
+    if(denom>0){
+      const total=caseTotal(sh);
+      const pct=total/denom*100;
+      ctx.textAlign="left";ctx.textBaseline="middle";
+      ctx.font="10px system-ui,-apple-system,sans-serif";
+      ctx.fillStyle=total>0?getCSS("--text-secondary"):getCSS("--text-muted");
+      ctx.fillText(pct.toFixed(1)+"%",xOffset+6,barY+barH/2);
+    }
     const labelSel=hovered && hovered.module===name;
     ctx.fillStyle=labelSel?getCSS("--text-primary"):getCSS("--text-secondary");
     ctx.font=(labelSel?"600 11px":"11px")+" system-ui,-apple-system,sans-serif";
@@ -1539,7 +1558,7 @@ function renderModules(){
 
   document.getElementById("legend-modules").innerHTML=
     '<div class="chart-legend-item"><span class="chart-legend-dot" style="background:'+getCSS("--series-1")+'"></span>收集目标（应收集用例）</div>'+
-    '<div class="chart-legend-item"><span class="chart-legend-dot" style="background:'+lighten(getCSS("--series-1"),0.5)+'"></span>其中 Should Not Do（不计入目标）</div>'+
+    '<div class="chart-legend-item"><span class="chart-legend-dot" style="background:'+lighten(getCSS("--series-1"),0.5)+'"></span>Should Not Do（不计入目标）</div>'+
     activeKeys.map(k=>
       `<div class="chart-legend-item"><span class="chart-legend-dot" style="background:${barColor(k)}"></span>${STATUS[k].label}</div>`
     ).join("");
@@ -1686,7 +1705,7 @@ function renderCollectProgress(){
   var el=document.getElementById("collect-progress");
   if(!el) return;
   // 总量用例场景无「解耦进度」口径：目标=社区总量用例 取自总量数据本身，会超 100%，故隐藏。
-  if(window.__DASH_DATASET__==="TOTAL"){ el.hidden=true; el.innerHTML=""; return; }
+  if(window.__DASH_SCENARIO__==="TOTAL"){ el.hidden=true; el.innerHTML=""; return; }
   el.hidden=false;
   var files=window.FILES||[];
   var snd=sndCaseTotals(files);   // 无需泛化：total=预收集 / num=已收集（剔除已收集）
@@ -1694,14 +1713,14 @@ function renderCollectProgress(){
   for(var i=0;i<files.length;i++){
     collected += files[i][3]||0;  // num (实际运行数量)
   }
-  // 目标 = 社区总量用例（收集用例 − 社区日落用例，来自 TOTAL_OVERVIEW.watch）
-  var w=(TOTAL_OVERVIEW && TOTAL_OVERVIEW.watch)?TOTAL_OVERVIEW.watch:null;
+  // 目标 = 社区总量用例（收集用例 − 社区日落用例，来自当前报告总量数据的 REPORT_TOTAL.watch）
+  var w=(REPORT_TOTAL && REPORT_TOTAL.watch)?REPORT_TOTAL.watch:null;
   var target=(w && w.collected!=null && w.snd!=null) ? (w.collected - w.snd) : 0;
   var pct = target>0 ? collected/target*100 : 0;
   var pctTxt = pct.toFixed(1)+"%";
   // 汇总宫格（与概览同步，失败用例数已移除）
   var tiles=[
-    {label:"应解耦文件", value:fmt(DATA.files_total-DATA.files_snd), sub:"总量 "+fmt(DATA.files_total)+"（含 Should Not Do 文件"+fmt(DATA.files_snd)+"）", accent:"var(--series-7)", color:""},
+    {label:"应解耦文件", value:fmt(DATA.files_total-DATA.files_snd-DATA.files_nocase), sub:"总量 "+fmt(DATA.files_total)+"，扣除 Should Not Do "+fmt(DATA.files_snd)+"、无用例文件 "+fmt(DATA.files_nocase), accent:"var(--series-7)", color:""},
     {label:"已解耦文件", value:fmt(DATA.files_gen), sub:"泛化率 "+DATA.files_gen_rate.toFixed(1)+"%", accent:"var(--gen-yes)", color:"var(--gen-yes)"},
     {label:"收集测试用例", value:fmt(DATA.cases_total - snd.num), sub:"含 blacklist "+fmt(DATA.cases.blacklist_unsupported)+"，其中剔除 Should Not Do 的用例 "+fmt(snd.num), accent:"var(--series-7)", color:""},
     {label:"看护用例数", value:fmt(DATA.cases.passed+DATA.cases.failed+DATA.cases.error+DATA.cases.timeout), sub:"通过 "+fmt(DATA.cases.passed)+" · 失败 "+fmt(DATA.cases.failed)+" · 错误/超时 "+fmt(DATA.cases.error+DATA.cases.timeout), accent:"var(--series-1)", color:"var(--series-1)"}
@@ -1736,7 +1755,7 @@ function renderTotalOverview(){
   var card=document.getElementById("total-overview");
   var watch=document.getElementById("total-watch");
   if(!card||!watch) return;
-  var w=(TOTAL_OVERVIEW && TOTAL_OVERVIEW.watch)?TOTAL_OVERVIEW.watch:null;
+  var w=(REPORT_TOTAL && REPORT_TOTAL.watch)?REPORT_TOTAL.watch:null;
   var num=function(v){ return v==null?"—":fmt(v); };
   var collected=w?w.collected:null;
   var snd=w?w.snd:null;

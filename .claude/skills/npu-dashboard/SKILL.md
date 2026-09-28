@@ -1,16 +1,16 @@
 ---
 name: npu-dashboard
-description: Regenerate the offline TorchNPU 社区用例看板 (PyTorch NPU community test-case dashboard) from a raw results workbook (all_testcases.xlsx). Aggregates per-module file-level generalization and case-level execution results into index.html and writes the per-case detail tree to a sibling cases.js, keeping the HTML small even for hundreds of thousands of cases. Use when asked to regenerate or refresh the test dashboard, rebuild dashboard numbers, or produce the same dashboard from a new test-results Excel. Triggered by phrases like "生成看板", "刷新看板", "数据看板", "测试看板", "测试用例看板", "dashboard".
+description: Regenerate the offline TorchNPU 社区用例看板 (PyTorch NPU community test-case dashboard) from a raw results workbook (all_testcases.xlsx). Aggregates per-module file-level generalization and case-level execution results into index.html and writes the per-case detail tree to sibling cases_*.js files, keeping the HTML small even for hundreds of thousands of cases. Use when asked to regenerate or refresh the test dashboard, rebuild dashboard numbers, or produce the same dashboard from a new test-results Excel. Triggered by phrases like "生成看板", "刷新看板", "数据看板", "测试看板", "测试用例看板", "dashboard".
 allowed-tools: Read, Write, Edit, Bash
 ---
 
 # NPU Test-Case Dashboard Generator
 
 Turn a raw results workbook into the offline HTML dashboard at
-`/workspace/dashboard/index.html` (plus the sibling `cases.js` holding the
+`/workspace/dashboard/index.html` (plus the sibling `cases_*.js` holding the
 per-case details). One command does the whole thing — the rendering code
 (charts, table, theme, detail tree) is fully data-driven and never needs editing
-for a new sample; only the generated `DATA` and `cases.js` change.
+for a new sample; only the generated `DATA` objects and `cases_*.js` change.
 
 ## Quick Start
 
@@ -27,44 +27,57 @@ python3 .claude/skills/npu-dashboard/scripts/generate_dashboard.py \
     --input new_sample.xlsx --output index.html
 ```
 
-## Datasets & scenario switch (A3 / A5 / TOTAL, one dashboard)
+## Datasets & scenario switch (2-D grid: A3/A5 reports × 总量/解耦 scenarios)
 
-`index.html` carries up to three aggregate `DATA` objects inline — `DATA_A3`,
-`DATA_A5` and `DATA_TOTAL` — plus the case detail files `cases.js` (A3),
-`cases_a5.js` (A5) and `cases_total.js` (TOTAL), each setting the same
-`window.CASES` / `window.FILES` globals. A header
-segmented control (A3 报告 / A5 报告) swaps reports: it stores the choice in
-`localStorage` + a `?dataset=` URL param and reloads the page. On load a small
-bootstrap script reads that choice and `document.write`s the matching
-`<script src>` (cases.js vs cases_a5.js), so only the active dataset's 25–50 MB
-detail file is parsed. The rendering code is otherwise unchanged — it always
-reads the fixed names `DATA` / `window.CASES` / `window.FILES`.
+`index.html` carries **four** aggregate `DATA` objects inline — one per
+(report, scenario) pair — plus four case detail files:
 
-Regenerate **both** community-decoupling datasets (A3 and A5) plus the Total
-总量 scenario whenever a new sample lands:
+| Report | Scenario | `DATA` object | cases file |
+|---|---|---|---|
+| A3 | 总量用例 | `DATA_A3_TOTAL` | `cases_a3_total.js` |
+| A3 | 解耦用例 | `DATA_A3_DECOUPLE` | `cases_a3_decouple.js` |
+| A5 | 总量用例 | `DATA_A5_TOTAL` | `cases_a5_total.js` |
+| A5 | 解耦用例 | `DATA_A5_DECOUPLE` | `cases_a5_decouple.js` |
+
+Each cases file sets the same `window.CASES` / `window.FILES` globals. A header
+segmented control (A3 报告 / A5 报告) selects the **report**; the two 场景 tabs
+(总量用例 / 解耦用例) select the **scenario** under it. Both switches set transient
+URL params — `?report=A3|A5` and `?scenario=TOTAL|DECOUPLE` — and reload, each
+preserving the other dimension. On load a small bootstrap script reads both params
+and `document.write`s the matching `<script src>` (e.g. `cases_a3_total.js`), so
+only the active pair's 25–50 MB detail file is parsed, then strips the params from
+the URL (no `localStorage`, so a plain refresh always returns to the default
+A3 · 总量用例). The rendering code is otherwise unchanged — it always reads the
+fixed names `DATA` / `window.CASES` / `window.FILES`.
+
+Regenerate a report whenever a new sample lands (A3 shown; A5 omits `--total`
+until an A5 总量 sample exists):
 
 ```bash
 python3 .claude/skills/npu-dashboard/scripts/generate_dashboard.py \
-    --input <a3>/all_testcases.xlsx --output index.html --dataset A3 --date 2026-09-26 \
-    --total <total>/all_testcases.xlsx --total-date 2026-09-23
+    --input <a3-decouple>/all_testcases.xlsx --output index.html --dataset A3 --date 2026-09-26 \
+    --total <a3-total>/all_testcases.xlsx --total-date 2026-09-23
 python3 .claude/skills/npu-dashboard/scripts/generate_dashboard.py \
-    --input <a5>/all_testcases.xlsx --output index.html --dataset A5 --date 2026-09-26
+    --input <a5-decouple>/all_testcases.xlsx --output index.html --dataset A5 --date 2026-09-26
 ```
 
-Run A3 (with `--total`) *and* A5 — running one leaves the other's `DATA`/cases
-file as-is. `DATA.date`/`DATA.dataset` feed the header subtitle and footer.
+Run A3 (with `--total`) *and* A5 — each run only rewrites its own report's
+`DATA_<R>_*` objects and cases files, leaving the other report as-is.
+`DATA.date`/`DATA.dataset` feed the header subtitle and footer.
 
-> **Default dataset is `TOTAL` (总量用例).** The bootstrap falls back to
-> `TOTAL` when there is no `?dataset=` URL param and no stored
-> `localStorage.npu-dash-dataset` preference (and maps any unrecognised value
-> to `TOTAL`). The two 场景 tabs are the primary navigation: 总量用例 (default)
-> → `?dataset=TOTAL`, 解耦用例 → `?dataset=A3`. The header A3/A5 报告 toggle is
-> a secondary switch scoped to the community-decoupling scenario.
+> **Default view is A3 · 总量用例.** The bootstrap falls back to `report=A3`,
+> `scenario=TOTAL` when either param is missing (and maps unrecognised values to
+> those defaults). The params are transient — stripped from the URL after the
+> bootstrap reads them — so a plain refresh always lands on A3 · 总量用例 rather
+> than remembering the last tab. The header A3/A5 toggle and the two 场景 tabs
+> are independent: switching the report keeps the current scenario, and switching
+> the scenario keeps the current report.
 
-> As of 2026-09 the A5 switch is kept but blanked: `DATA_A5` is `null` and
-> `cases_a5.js` holds only `window.CASES={};window.FILES=[];`. The shell's
-> `DATA_EMPTY` guard renders a「暂无数据」empty state whenever the active dataset has
-> no data, so A5 shows placeholder until a fresh A5 sample is regenerated.
+> As of 2026-09 the A5 report is kept but blanked: `DATA_A5_TOTAL` and
+> `DATA_A5_DECOUPLE` are `null` and `cases_a5_total.js`/`cases_a5_decouple.js` hold
+> only `window.CASES={};window.FILES=[];`. The shell's `DATA_EMPTY` guard renders a
+>「暂无数据」empty state whenever the active (report, scenario) has no data, so A5
+> shows placeholder until a fresh A5 sample is regenerated.
 
 ## Parameters
 
@@ -72,22 +85,23 @@ file as-is. `DATA.date`/`DATA.dataset` feed the header subtitle and footer.
 |-----------|---------|-------------|
 | `--input`, `-i` | `all_testcases.xlsx` | Input workbook (schema auto-detected, see below) |
 | `--output`, `-o` | `index.html` | HTML to write (the template with `__DATA__` markers) |
-| `--cases-out`, `-c` | `<output dir>/cases.js` | Where to write the per-case detail JS |
+| `--cases-out`, `-c` | `<output dir>/cases_<report>_decouple.js` | Where to write the per-case detail JS |
 | `--blacklist`, `-b` | `blacklist_testcases.xlsx` next to `--input` (if present) | Blacklist workbook; folds blacklisted cases into the case totals |
 | `--status`, `-s` | `status_tracking.xlsx` or `summary_report.xlsx` next to `--input` (if present) | Tracking workbook (one sheet per module); attaches a status tag (`Done`/`Todo`/`In Progress`/`Backlog`, read from `Status` or `社区status`), a priority tag (`High`/`Medium`/`Low`/`Should Not Do`, from `Priority`), and the assignee (from `Assignee` or `author`) to each file in the 测试文件 tab |
 | `--json-out` | _(none)_ | Optional: also dump the computed `DATA` to a `.json` file |
-| `--dataset`, `-d` | `A3` | Dataset key for the community-decoupling report (`A3`/`A5`). Picks the injection markers (`__DATA_BEGIN__` for A3, `__DATA_A5_BEGIN__` for A5) and the cases filename (`cases.js` for A3, `cases_a5.js` for A5), so both reports can coexist in one `index.html` (the TOTAL 总量 scenario is generated via `--total`, not this flag) |
+| `--dataset`, `-d` | `A3` | Report key (`A3`/`A5`). Regenerates that report's **both** scenarios: 解耦用例 (`DATA_<R>_DECOUPLE` between `__DATA_<R>_DECOUPLE_BEGIN__/END__` + `cases_<r>_decouple.js`) and — when `--total` is given — 总量用例 (`DATA_<R>_TOTAL` + `cases_<r>_total.js`) |
 | `--date` | _(none)_ | Report date string stored in `DATA.date` and shown in the header/footer (e.g. `2026-09-19`) |
-| `--total` | _(none)_ | Total (总量) workbook. Generates **both** the top-of-page 「用例总览」 看护策略 card (`TOTAL_OVERVIEW`, injected between `__TOTAL_BEGIN__`/`__TOTAL_END__`) **and** the full 总量用例 scenario — `DATA_TOTAL` (between `__DATA_TOTAL_BEGIN__`/`__DATA_TOTAL_END__`) plus `cases_total.js` (`window.CASES`/`window.FILES`). Omitted, the template keeps its `null` placeholders |
+| `--total` | _(none)_ | The report's Total (总量) workbook. Builds the 总量用例 scenario — `DATA_<R>_TOTAL` (between `__DATA_<R>_TOTAL_BEGIN__`/`__DATA_<R>_TOTAL_END__`) plus `cases_<r>_total.js` — with the 看护策略 numbers from `build_total()` folded into the scenario object as `DATA_<R>_TOTAL.watch` (the top 「用例总览」 card and 解耦进度 target both read this). Omitted, `DATA_<R>_TOTAL` stays `null` and a blank `cases_<r>_total.js` is written so the 总量用例 tab never 404s |
 | `--total-status` | `summary_report.xlsx` next to `--total` (if present) | Tracking workbook for the Total data. Resolves `Should Not Do` (Priority) into the SND 文件集合: their cases are excluded from the 总量用例 scenario's case counts **and** from the 看护策略 `社区跳过用例`/`黑名单跳过用例` terms (so `目标看护用例` == `passed+failed+timeout+error`); also attaches status/priority/assignee to the 总量用例 测试文件 tab |
-| `--total-date` | `--date` | Report date for the Total scenario (`DATA_TOTAL.date` / `TOTAL_OVERVIEW.date`; e.g. `2026-09-23` while the A3 `--date` is `2026-09-26`) |
+| `--total-date` | `--date` | Report date for the Total scenario (`DATA_<R>_TOTAL.date`; e.g. `2026-09-23` while the A3 `--date` is `2026-09-26`) |
 
 Dependencies: `openpyxl` only (`pip3 install openpyxl`).
 
 ## 用例总览 (top of page, from the Total workbook)
 
-The page opens with a fixed 「用例总览」 section fed by the **Total** (总量)
-workbook (via `--total`), independent of the A3/A5 dataset switch. It shows a single
+The page opens with a fixed 「用例总览」 section fed by the **current report's**
+Total (总量) workbook (via `--total`) — its numbers come from `DATA_<R>_TOTAL.watch`,
+so switching A3/A5 swaps the formula to that report's 总量 data. It shows a single
 看护公式 card (no title/subtitle) rendered as a **two-row grid** with two tall, emphasized boxes —
 `社区总量用例` (blue, `.wf-result`) in the middle and `目标看护用例` (green, `.wf-watch`) on the right —
 both stretched to span the two rows (`grid-row:1/3`, `.wf-tall`) with a **larger bold** number
@@ -132,8 +146,8 @@ counting toward the case totals. `build_total()` keeps the top 看护公式 in t
 files' rows from `社区跳过用例`/`黑名单跳过用例`, so `目标看护用例 == passed + failed + timeout + error`
 in exact agreement with the scenario's 用例执行结果分布.
 
-(The 用例分布 公共/CPU/PU1 pie-chart card was removed; `build_total()` still emits a
-`dist` field with the pre-collection split, but the frontend no longer renders it.)
+(The 用例分布 公共/CPU/PU1 pie-chart card was removed, so `build_total()` no longer
+emits the pre-collection `dist` split — only the 看护策略 `watch` numbers.)
 
 Below 用例总览 there are **two cards**: the 用例总览 card (a normal rounded card, `margin-bottom` for
 separation) and, below it, a single `.scenario-content` card that wraps both the 总量用例 / 解耦用例
@@ -151,15 +165,16 @@ continuous ("一体") with the content card's outline. An **inactive** tab inste
 the same 1px outline on all four sides. The two tabs overlap (a negative `margin-left` on `.scenario-tab + .scenario-tab` — negative flex
 `gap` is unreliable, so margin is used instead) and the active tab is layered above the inactive one
 (`z-index`); the active/inactive distinction is text
-only (active = bold primary-coloured text, inactive = grey, hover lightens the fill). The tabs are global —
-they switch the **dataset** and reload the page: **总量用例** (the default when no `?dataset=` /
-`localStorage` preference is set) → `?dataset=TOTAL` (loads `cases_total.js`),
-**解耦用例** → `?dataset=A3` (loads `cases.js`; `A5` remains a community-decoupling variant behind the
-header A3/A5 toggle). The 概览 / 用例详情 / 测试文件 views are a single shared DOM that re-renders against
-the active dataset's `DATA` / `window.CASES` / `window.FILES`. The **用例解耦进度** card renders only for
-the community-decoupling scenario (A3/A5) and is hidden for 总量用例 (`renderCollectProgress()` short-circuits
-when `window.__DASH_DATASET__ === "TOTAL"`, because its target 社区总量用例 comes from the Total data itself
-and would exceed 100%).
+only (active = bold primary-coloured text, inactive = grey, hover lightens the fill). The tabs are the
+scenario selector under the header A3/A5 report toggle — they switch the **scenario** and reload the page
+while preserving the report: **总量用例** (the default when no `?scenario=` param is set; the transient
+param is stripped after load so a refresh returns here) → `?scenario=TOTAL` (loads `cases_<report>_total.js`),
+**解耦用例** → `?scenario=DECOUPLE` (loads `cases_<report>_decouple.js`). The 概览 / 用例详情 / 测试文件 views
+are a single shared DOM that re-renders against
+the active (report, scenario)'s `DATA` / `window.CASES` / `window.FILES`. The **用例解耦进度** card renders only for
+the 解耦用例 scenario and is hidden for 总量用例 (`renderCollectProgress()` short-circuits
+when `window.__DASH_SCENARIO__ === "TOTAL"`, because its target 社区总量用例 comes from the current report's
+Total data itself and would exceed 100%).
 
 ## Input schema (the raw workbook)
 
@@ -301,21 +316,22 @@ per module (grouped by sheet name):
 The output is **two files** that sit side by side and work fully offline:
 
 - **`index.html`** — the dashboard shell: all CSS/HTML/JS plus the small
-  aggregate `DATA` objects, injected inline between one marker pair per dataset
-  (`DATA_A3`, `DATA_A5` and `DATA_TOTAL`; see the datasets/scenario switch
-  section above):
+  aggregate `DATA` objects, injected inline between one marker pair per
+  (report, scenario) — `DATA_A3_TOTAL`, `DATA_A3_DECOUPLE`, `DATA_A5_TOTAL`,
+  `DATA_A5_DECOUPLE` (see the datasets/scenario switch section above):
 
   ```js
-  const DATA_A3    = /*__DATA_BEGIN__*/        { ...aggregate... } /*__DATA_END__*/;
-  const DATA_A5    = /*__DATA_A5_BEGIN__*/     { ...aggregate... } /*__DATA_A5_END__*/;
-  const DATA_TOTAL = /*__DATA_TOTAL_BEGIN__*/  { ...aggregate... } /*__DATA_TOTAL_END__*/;
-  const DATA   = (window.__DASH_DATASET__ === "A5") ? DATA_A5
-               : (window.__DASH_DATASET__ === "TOTAL") ? DATA_TOTAL : DATA_A3;
+  const DATA_A3_TOTAL    = /*__DATA_A3_TOTAL_BEGIN__*/    { ...aggregate... } /*__DATA_A3_TOTAL_END__*/;
+  const DATA_A3_DECOUPLE = /*__DATA_A3_DECOUPLE_BEGIN__*/ { ...aggregate... } /*__DATA_A3_DECOUPLE_END__*/;
+  const DATA_A5_TOTAL    = /*__DATA_A5_TOTAL_BEGIN__*/    { ...aggregate... } /*__DATA_A5_TOTAL_END__*/;
+  const DATA_A5_DECOUPLE = /*__DATA_A5_DECOUPLE_BEGIN__*/ { ...aggregate... } /*__DATA_A5_DECOUPLE_END__*/;
+  const DATA         = window["DATA_" + window.__DASH_REPORT__ + "_" + window.__DASH_SCENARIO__];
+  const REPORT_TOTAL = window["DATA_" + window.__DASH_REPORT__ + "_TOTAL"];
   ```
 
-- **`cases.js`** / **`cases_a5.js`** / **`cases_total.js`** — the bulky per-case detail tree, written as a single
+- **`cases_a3_total.js`** / **`cases_a3_decouple.js`** / **`cases_a5_total.js`** / **`cases_a5_decouple.js`** — the bulky per-case detail tree, written as a single
   `window.CASES = { ... }` assignment and loaded by the shell via
-  `<script src="cases.js"></script>`. Its shape is
+  `<script src="cases_a3_total.js"></script>` (the file for the active report/scenario). Its shape is
   `module -> file -> [[nodeid_suffix, result], ...]`; the nodeid's file prefix is
   stripped and stored once per file, and the UI reconstructs the full nodeid as
   `file + "::" + suffix`. Executed cases are 2-element `[suffix, result]`;
@@ -326,10 +342,10 @@ The output is **two files** that sit side by side and work fully offline:
   cpu/npu/pub = `CPU预收集`/`NPU预收集`/`预收集-公共用例`; status/priority/assignee come from the
   tracking sheet, `""` when the file is absent) backs the 测试文件 tab. This keeps
   `index.html` tiny no matter how many cases there are — hundreds of thousands of
-  cases grow `cases.js`, not the HTML.
+  cases grow `cases_*.js`, not the HTML.
 
 The script serializes `DATA` to JSON (a valid JS object literal) and replaces
-everything between the markers; `cases.js` is regenerated from scratch each run.
+everything between the markers; the `cases_*.js` files are regenerated from scratch each run.
 Everything outside the `DATA` markers — CSS, HTML, canvas renderers, theme
 toggle, table, detail-view code — is static and reused as-is.
 
@@ -359,7 +375,11 @@ regeneration leaves them unchanged:
     non-clickable reference on the same axis;
     the Should Not Do portion of that total is drawn in a lighter blue so the
     should-collect / Should Not Do split stays visible, and the axis max is
-    `max(已收集最大值, 目标最大值)`. Both bars are equal height. Hovering the 收集目标
+    `max(已收集最大值, 目标最大值)`. Both bars are equal height. To the right of the
+    stacked bar each row shows a percentage — the module's collected cases
+    (`caseTotal(sh)`) as a share of its 收集目标 **excluding the Should Not Do portion**
+    (`target − snd`), i.e. `caseTotal / (target − snd) × 100%`, drawn in a muted
+    secondary color. Hovering the 收集目标
     bar shows a tooltip with its case count (`模块 · 收集目标 / N 用例`, plus the
     Should Not Do count when non-zero) but it stays non-clickable (cursor stays default,
     no drill-down).
@@ -444,20 +464,21 @@ Check against the printed summary:
 
 ### Step 4: Sanity-check the HTML
 
-Open `index.html` in a browser (works offline, no CDN; `cases.js` must be in the
+Open `index.html` in a browser (works offline, no CDN; the `cases_*.js` files must be in the
 same folder as `index.html`). Confirm:
 
-- Overview top: the 用例总览 section (a single 看护策略 card from `TOTAL_OVERVIEW`) fixed at the top
+- Overview top: the 用例总览 section (a single 看护策略 card from `DATA_<R>_TOTAL.watch`) fixed at the top
   of the page, followed by the 总量用例/解耦用例 场景 tabs (正梯形页签, sticking up from the top edge
   of the single `.scenario-content` card below, both tabs' outlines continuous with that card; global —
-  reload-based dataset switch driving the 概览/用例详情/测试文件 tabs below); in the 解耦用例 scenario,
+  reload-based scenario switch driving the 概览/用例详情/测试文件 tabs below, preserving the A3/A5 report);
+  in the 解耦用例 scenario,
   the 用例解耦进度 card — a 解耦进度 bar (已收集 = 实际运行 + blacklist_total（含 Running Skiped，展示时并入
-  skipped）; 目标 = 社区总量用例 = 收集用例 − 社区日落用例, from `TOTAL_OVERVIEW`; 已收集/目标 counts and the
+  skipped）; 目标 = 社区总量用例 = 收集用例 − 社区日落用例, from `DATA_<R>_TOTAL.watch`; 已收集/目标 counts and the
   percentage sit on one line above the bar) (the 用例目标 donut was removed). This card is **hidden** in the
   总量用例 scenario.
   The 4 summary tiles live inside this card as a single 1×4 row (the former 失败用例数
   tile was removed), in order:
-  应解耦文件 (`files_total - files_snd`, sub 总量 `files_total` 含 Should Not Do 文件 `files_snd`) /
+  应解耦文件 (`files_total - files_snd - files_nocase`, sub 总量 `files_total` 扣除 Should Not Do `files_snd`、无用例文件 `files_nocase`) /
   已解耦文件 (`files_gen`, sub 泛化率) / 收集测试用例 (`cases_total - snd.num`, sub 含 blacklist
   `blacklist_unsupported`，其中剔除 Should Not Do 的 用例 `snd.num`) / 看护用例数 (通过 + 失败 + 错误/超时).
 - Case-level: 用例执行结果分布 donut + 各模块用例执行结果 stacked bar (each row topped by a blue
