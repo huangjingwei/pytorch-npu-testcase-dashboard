@@ -84,15 +84,20 @@ def _precollect_names(dataset):
     ``A3-仅NPU`` and the A5 equivalents); older exports carried a single set
     (``预收集-公共用例`` / ``预收集-仅CPU`` / ``预收集-仅NPU``).
 
-    The ``TOTAL`` (总量) workbook carries the *same* ``A3-…`` pre-collection
-    columns as the A3 report (there is no ``TOTAL-…`` set), so ``TOTAL`` resolves
-    to the A3 column names rather than a non-existent ``TOTAL-…`` prefix."""
+    The 2026-09-29 export renamed the A3 columns to ``A3全量-公共用例`` /
+    ``A3全量-仅CPU`` / ``A3全量-仅NPU`` (and dropped the A5 column set), so both
+    ``<KEY>-…`` and ``<KEY>全量-…`` spellings are matched.
+
+    The ``TOTAL`` (总量) workbook carries the *same* ``A3…`` pre-collection
+    columns as the A3 report (there is no ``TOTAL…`` set), so ``TOTAL`` resolves
+    to the A3 column names rather than a non-existent ``TOTAL…`` prefix."""
     key = "A3" if dataset == "TOTAL" else dataset
     p = key + "-"
+    pfull = key + "全量-"
     return {
-        "pub": [p + "公共用例", "预收集-公共用例"],
-        "cpu": [p + "仅CPU", "CPU预收集", "预收集-仅CPU"],
-        "npu": [p + "仅NPU", "NPU预收集", "预收集-仅NPU"],
+        "pub": [pfull + "公共用例", p + "公共用例", "预收集-公共用例"],
+        "cpu": [pfull + "仅CPU", p + "仅CPU", "CPU预收集", "预收集-仅CPU"],
+        "npu": [pfull + "仅NPU", p + "仅NPU", "NPU预收集", "预收集-仅NPU"],
     }
 
 
