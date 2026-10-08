@@ -817,7 +817,13 @@ def main(argv=None):
                 total_status = cand
                 break
 
-    data, detail, file_list = build(args.input, blacklist, args.dataset)
+    # Should Not Do (社区日落) 文件：其用例从解耦场景的 case-level 数字中剔除，
+    # 与总量场景口径一致，使「收集测试用例」「看护用例数」「收集用例执行结果」
+    # 均不含 Should Not Do 用例（文件级口径仍保留 SND 文件本身）。
+    track = load_status(status_path) if status_path else {}
+    snd_files = {f for f, (st, pr, asg) in track.items() if pr == "Should Not Do"}
+    data, detail, file_list = build(args.input, blacklist, args.dataset,
+                                    exclude_files=snd_files)
 
     # Attach the tracked status/priority/assignee (if any) to each file list
     # entry, as 5th/6th/7th elements, and keep the pre-collection counts
