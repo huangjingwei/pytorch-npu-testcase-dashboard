@@ -269,6 +269,32 @@ def load_status(path):
     return track
 
 
+def load_precollect(path):
+    """Read a workbook's ``all_files`` sheet and return ``{file: (cpu, npu, pub)}``
+    — the per-file pre-collection counts (收集目标). Used to align the 解耦用例
+    scenario's target with the Total (总量) workbook when the decouple export's own
+    pre-collection columns come back empty."""
+    wb = openpyxl.load_workbook(path, data_only=True)
+    ws = wb["all_files"]
+    rows = ws.iter_rows(values_only=True)
+    header = next(rows, None)
+    pre = _precollect_names("TOTAL")
+    col_file = _find_column(header, COLUMN_SPEC["file"])
+    col_pub = _find_column(header, {"names": pre["pub"], "fallback": None})
+    col_cpu = _find_column(header, {"names": pre["cpu"], "fallback": None})
+    col_npu = _find_column(header, {"names": pre["npu"], "fallback": None})
+    out = {}
+    for row in rows:
+        f = _cell(row, col_file)
+        if not f:
+            continue
+        out[f] = (_to_int(_cell(row, col_cpu)),
+                  _to_int(_cell(row, col_npu)),
+                  _to_int(_cell(row, col_pub)))
+    wb.close()
+    return out
+
+
 def build_total(path, status_path=None):
     """Read the *Total* (总量) workbook and compute the top-of-overview
     「用例总览」 看护策略 numbers, rendered by the frontend as a two-row grid —
@@ -725,14 +751,25 @@ def inject(html, begin, end, body):
     return html[:start] + begin + body + end + html[stop + len(end):]
 
 
-def attach_status_and_fold(data, file_list, status_path):
+def attach_status_and_fold(data, file_list, status_path, total_precollect=None):
     """Attach tracked status/priority/assignee (5th/6th/7th elements) and the
     pre-collection counts (8th/9th/10th) to each file list entry, then fold
     "Should Not Do" (无需泛化) files out of the 未泛化 bucket so the file-level
-    charts can show them as a distinct third category."""
+    charts can show them as a distinct third category.
+
+    ``total_precollect`` (optional ``{file: (cpu, npu, pub)}`` from the Total
+    workbook) aligns the scenario's pre-collection (收集目标) and the 未泛化 /
+    无用例文件 split with the Total data: files present in the Total use its
+    pre-collection, and files absent from the Total are treated as 未泛化 (presumed
+    to have a target the older Total snapshot predates)."""
     track = load_status(status_path) if status_path else {}
     file_list = [[m, f, g, num] + list(track.get(f, ("", "", ""))) + [cpu, npu, pub]
                  for m, f, g, num, cpu, npu, pub in file_list]
+    total_files = set(total_precollect) if total_precollect else None
+    if total_files is not None:
+        for e in file_list:
+            if e[1] in total_files:
+                e[7], e[8], e[9] = total_precollect[e[1]]
     snd_by_module = defaultdict(int)
     gen_by_module = defaultdict(int)      # 已泛化 = gen 且非 Should Not Do（Should Not Do 单独一类）
     na_by_module = defaultdict(int)       # 未泛化 = 有预收集用例但尚未收集（需泛化）
@@ -747,6 +784,8 @@ def attach_status_and_fold(data, file_list, status_path):
             snd_by_module[m] += 1          # 所有 Should Not Do 文件，无论是否已泛化
         elif g == 1:
             gen_by_module[m] += 1          # 已泛化 = gen 且非 Should Not Do
+        elif total_files is not None and f not in total_files:
+            na_by_module[m] += 1           # 不在 Total 内 → 视为未泛化（对齐总量口径）
         elif pre > 0:
             na_by_module[m] += 1           # 未泛化 = 有预收集用例但尚未收集
         else:
@@ -830,7 +869,12 @@ def main(argv=None):
     # (cpu/npu/pub from all_files) as the final 8th/9th/10th. Files absent from
     # the tracking sheet carry "" for each (untracked). Also folds "Should Not Do"
     # files out of the 未泛化 bucket.
-    data, file_list = attach_status_and_fold(data, file_list, status_path)
+    #
+    # 解耦导出的预收集列可能为空（2026-10-08 起），此时用 Total 工作簿的预收集
+    # 对齐收集目标与「未泛化/无用例文件」划分，使无用例文件口径与总量用例一致。
+    total_precollect = load_precollect(args.total) if args.total else None
+    data, file_list = attach_status_and_fold(data, file_list, status_path,
+                                             total_precollect=total_precollect)
 
     if args.date:
         data["date"] = args.date
