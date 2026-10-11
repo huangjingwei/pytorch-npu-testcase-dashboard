@@ -125,14 +125,19 @@ while `收集用例` uses the un-muted style (dark number and label) since it is
 centers as a group.
 
 where `收集用例` (原社区总量用例, shown as a tooltip on the 收集用例 chip) = Σ
-`实际运行数量` (= `all_testcases` rows), `社区总量用例` = `收集用例 − 社区日落用例`
-(the shared middle box), `社区跳过用例` = `all_testcases` rows with 执行结果
-`skipped`, `黑名单跳过用例` = `all_testcases` rows whose `不支持` (黑名单) column is `是`,
-and `社区日落用例` = collected cases (`实际运行数量`) of files whose tracked priority is
-`Should Not Do` (sunset files, from `--total-status`). **`社区跳过用例` and `黑名单跳过用例`
-each exclude the Should Not Do files' rows** — those cases are already fully subtracted via
-`社区日落用例`, so excluding them here keeps them from being double-subtracted. `build_total()`
-computes `collected` / `community_skip` / `blocklist` / `snd` / `result`; the frontend derives the
+`实际运行数量` (= `all_testcases` rows) **加上** `黑名单跳过` sheet 的用例数量
+(2026-10-11 起全量报告把黑名单用例从 `all_testcases` 挪到独立的 黑名单跳过 sheet，故要相加),
+`社区总量用例` = `收集用例 − 社区日落用例` (the shared middle box). The three subtractive
+terms reconcile **exactly** with the scenario's 用例执行结果分布:
+`社区跳过用例` = `all_testcases` 里 执行结果 `skipped` 的行（非 SND）**加上** 黑名单里的
+"Running Skiped" 条目（非 SND，分布里归类为 `skipped`）; `黑名单跳过用例` = 黑名单里
+「不支持」类条目（device/cann/dtype not supported，非 SND，== 分布的 `blacklist_unsupported`）;
+`社区日落用例` = Should Not Do 文件的 `实际运行数量`（其 `all_testcases` 行）**加上**
+这些文件的黑名单条目（分布口径把 SND 文件的用例整体剔除，含其黑名单条目）。
+**`社区跳过用例` excludes the Should Not Do files' rows** — those cases are already
+subtracted in full via `社区日落用例`, so excluding them here keeps them from being
+double-subtracted; SND 文件的黑名单条目则并入 `社区日落用例`。`build_total()` computes
+`collected` / `community_skip` / `blocklist` / `snd` / `result`; the frontend derives the
 `社区总量用例` intermediate as `collected − snd`.
 
 **Should Not Do 口径 (总量).** For the Total (总量) data, every file whose tracked
@@ -142,9 +147,12 @@ from the 总量用例 scenario's *case-level* numbers: `build_two_tier()` is cal
 明细树 / `cases_total` (so `cases_total` == 社区总量用例, not 收集用例). The 测试文件 tab still
 lists those files (Priority 列标注 `Should Not Do`, 保留其原始 `实际运行数量`) — they only stop
 counting toward the case totals. `build_total()` keeps the top 看护公式 in terms of the raw
-`收集用例`, subtracts the SND cases in full via `社区日落用例`, and (as above) excludes the SND
-files' rows from `社区跳过用例`/`黑名单跳过用例`, so `目标看护用例 == passed + failed + timeout + error`
-in exact agreement with the scenario's 用例执行结果分布.
+`收集用例`, subtracts the SND cases in full via `社区日落用例` (including those files' blacklist
+entries), and (as above) excludes the SND files' rows from `社区跳过用例`, so
+`目标看护用例 == passed + failed + timeout + error` in exact agreement with the scenario's
+用例执行结果分布. Since 2026-10-11 the 内联 `不支持` column in `all_testcases` is **no longer**
+reclassified as `blacklist_unsupported` (`unsupported_to_blacklist=False`) — those historical rows
+keep their original 执行结果, and only the separate 黑名单跳过 sheet feeds the blacklist counts.
 
 (The 用例分布 公共/CPU/PU1 pie-chart card was removed, so `build_total()` no longer
 emits the pre-collection `dist` split — only the 看护策略 `watch` numbers.)
@@ -371,7 +379,9 @@ regeneration leaves them unchanged:
     `blacklist_unsupported` and `not_executed` segments are drawn lightened (muted)
     to downplay the non-看护 statuses (via a `lighten()` helper, legend dots
     matched). Each module row also draws a thin blue **收集目标** bar above the
-    stacked bar — the module's should-collect total (`公共 + CPU + NPU` 预收集) — as a
+    stacked bar — the module's should-collect total (`公共 + CPU + NPU` 预收集, plus the
+    黑名单跳过 sheet cases per module since 2026-10-11 so the bar reconciles with the
+    case distribution) — as a
     non-clickable reference on the same axis;
     the Should Not Do portion of that total is drawn in a lighter blue so the
     should-collect / Should Not Do split stays visible, and the axis max is
@@ -405,6 +415,17 @@ regeneration leaves them unchanged:
   means "all"; the dropdown is rendered by a `makeMultiSelect` helper that replaces
   the native `<select>`). `openCaseDetails` sets the relevant ones before switching
   views.
+- **Skip-category labels & narrowing.** The skip-category filter options and the
+  blacklist chip shown on each case row both render the raw `skip分类` values
+  through a single `skipTag()` mapper, so the display labels are shared
+  everywhere: `Running Skiped` → `Running`, `cann not supported` → `CANN SEG`,
+  `device not supported` → `Device SEG`, `dtype not supported (api)` → `API DOCS`,
+  `dtype not supported (cann)` → `OPS DOCS`. Selecting a status (or statuses)
+  narrows the skip-category dropdown to only the `skip分类` values that status
+  actually carries (`DATA.skip_categories`): in particular selecting
+  **blacklist** drops `Running` from the skip-category options (and deselects it),
+  since `blacklist_unsupported` only carries the four `*_not_supported`
+  categories.
 - **测试文件 tab.** Groups every test file by module (a collapsible module node
   whose children are that module's files, each showing path followed by fixed-width
   trailing columns in order 已泛化用例数 (num, black) / 公共收集 / CPU预收集 / NPU预收集 / assignee /
@@ -489,14 +510,19 @@ same folder as `index.html`). Confirm:
   已解耦文件 (`files_gen`, sub 泛化率) / 收集测试用例 (`cases_total - snd.num`, sub 含 blacklist
   `blacklist_unsupported`，其中剔除 Should Not Do 的 用例 `snd.num`) / 看护用例数 (通过 + 失败 + 错误/超时).
 - Case-level: 用例执行结果分布 donut + 各模块用例执行结果 stacked bar (each row topped by a blue
-  收集目标 reference bar) + 模块详情汇总 table
+  收集目标 reference bar) + 模块详情汇总 table. The 用例执行结果分布 card carries a muted
+  `.chart-note` footnote below the donut explaining the two non-看护 statuses — 跳过用例
+  (用例执行过程中被跳过的用例) and Blacklist 用例 (依据 SEG 结论或公开资料的限制说明进入黑名单,
+  linking out to the wiki) — shared by both 总量用例 and 解耦用例
   (columns 模块 / 文件 / 已泛化 / 收集用例 / Passed / Failed / Skipped / Blacklist / Timeout / Error / 通过率,
   where 通过率 is 看护口径 — `passed / (passed + failed + timeout + error)`, excluding skipped/blacklist;
   sortable headers, no inline result-distribution bar)
 - File-level: 文件泛化率 donut + 各模块文件泛化情况 stacked bar
 - 用例详情 tab: drill-down 模块 → 文件 → 用例 (nodeid + 执行结果), with search / module / status /
   skip-category filters and chunked "加载更多" per file; blacklisted cases show their `skip分类`
-  as a compact chip (the `skip原因` in its tooltip, keeping rows uncluttered)
+  as a compact chip (the `skip原因` in its tooltip, keeping rows uncluttered); the chip
+  label is the mapped display label (Device SEG / CANN SEG / API DOCS / OPS DOCS / Running)
+  from `skipTag()`, not the raw value
 - 测试文件 tab: files grouped by module (collapsible), each file showing path / 已泛化·未泛化·无用例文件·Should Not Do
   badge / case count, with search, module, and gen-status filters
 - Clicking a case-donut slice/legend, a module-bar segment, a 模块详情汇总 table cell, or a

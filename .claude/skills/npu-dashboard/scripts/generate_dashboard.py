@@ -307,19 +307,22 @@ def build_total(path, status_path=None):
     de-emphasized as smaller grey ``.wf-muted`` chips (``收集用例`` stays at
     the default dark style — number and label — as the source total).
 
-    ``收集用例`` (原社区总量用例) is the sum of ``实际运行数量`` (== ``all_testcases``
-    rows); the frontend derives ``社区总量用例`` as ``收集用例 − 社区日落用例``.
-    ``社区跳过用例`` counts ``all_testcases`` rows whose 执行结果 is ``skipped``;
-    ``黑名单跳过用例`` counts ``all_testcases`` rows whose ``不支持`` (黑名单) column is
-    set (``是``) — the NPU-unsupported cases; ``社区日落用例`` is the
-    collected total (``实际运行数量``) of files whose tracked priority is
-    ``Should Not Do`` (sunset files; 0 unless a tracking workbook is supplied).
+    ``收集用例`` = ``实际运行数量`` 之和 (== ``all_testcases`` rows) **加上**
+    ``黑名单跳过`` sheet 的用例数量（2026-10-11 起全量报告把黑名单用例从
+    ``all_testcases`` 挪到独立的 黑名单跳过 sheet，故要相加）；the frontend derives
+    ``社区总量用例`` as ``收集用例 − 社区日落用例``.
 
-    ``社区日落用例`` files' rows are *also* excluded from ``社区跳过用例`` and
-    ``黑名单跳过用例``, so the resulting ``目标看护用例`` reconciles exactly with
-    the scenario's SND-excluded 用例执行结果分布 (``passed + failed + error``);
-    otherwise the SND cases that are themselves skipped/unsupported would be
-    subtracted twice (once via these chips, once via ``社区日落用例``)."""
+    「跳过 / 黑名单 / 日落」三项与「用例执行结果分布」严格一一对应：
+    ``社区跳过用例`` = ``all_testcases`` 里 执行结果 ``skipped`` 的行（非 SND）
+    **加上** 黑名单里的 "Running Skiped" 条目（非 SND，分布里它们归类为 ``skipped``）；
+    ``黑名单跳过用例`` = 黑名单里「不支持」类条目（device/cann/dtype not supported，非 SND，
+    == 分布的 ``blacklist_unsupported``）；``社区日落用例`` = Should Not Do 文件的
+    ``实际运行数量``（其 ``all_testcases`` 行）**加上** 这些文件的黑名单条目（分布口径
+    会把 SND 文件的用例整体剔除，含其黑名单条目）。
+
+    ``社区日落用例`` files' rows are *also* excluded from ``社区跳过用例``, so the
+    resulting ``目标看护用例`` reconciles exactly with the scenario's
+    SND-excluded 用例执行结果分布 (``passed + failed + error``)."""
     wb = openpyxl.load_workbook(path, data_only=True)
 
     ws = wb["all_files"]
@@ -327,22 +330,31 @@ def build_total(path, status_path=None):
     header = next(rows, None)
     col_file = _find_column(header, COLUMN_SPEC["file"])
     col_num = _find_column(header, COLUMN_SPEC["num"])
+    col_sheet = _find_column(header, COLUMN_SPEC["sheet"])
 
     collected = 0
     file_num = {}
+    file_module = {}
+    cur_sheet = None
     for row in rows:
+        if col_sheet is not None:
+            s = _cell(row, col_sheet)
+            if s:
+                cur_sheet = s
         f = _cell(row, col_file)
         if not f:
             continue
         num = _to_int(_cell(row, col_num))
         collected += num
         file_num[f] = num
+        if cur_sheet:
+            file_module[f] = _canonical_module(cur_sheet)
 
     # 社区日落用例 = collected cases (实际运行数量) of files whose tracked priority
     # is "Should Not Do" (sunset files). Every Should Not Do file is sunset, so its
     # actually-collected cases are subtracted from the watch total. Its file paths
-    # are kept so the 社区跳过/黑名单 loops below can skip their rows — otherwise
-    # the SND cases that are themselves skipped/unsupported would be double-subtracted.
+    # are kept so the 社区跳过 loop below can skip their rows — otherwise the SND
+    # cases that are themselves skipped would be double-subtracted.
     snd = 0
     snd_files = set()
     if status_path:
@@ -352,13 +364,41 @@ def build_total(path, status_path=None):
                 snd_files.add(f)
                 snd += num
 
+    # 收集用例 = all_testcases 用例总量（Σ实际运行数量）+ 黑名单跳过 sheet 用例数量。
+    # 2026-10-11 起全量报告把黑名单用例从 all_testcases 挪到独立的 黑名单跳过 sheet，
+    # 故收集用例要把两者相加；黑名单跳过用例取 sheet 行数（内联 不支持 列暂不计）。
+    # 同时按模块统计黑名单（全量 + Should Not Do 份额），供「收集目标」蓝色柱对齐：
+    # 收集目标 = Σ实际运行数量 + 黑名单（全量），Should Not Do 份额同样计入其黑名单
+    # 条目，使蓝色柱剔除 SND 后与场景内各模块用例执行结果严格一致。
+    blacklist_count = 0
+    blacklist_by_module = Counter()
+    snd_blacklist_by_module = Counter()
+    running_skip = 0      # 黑名单里 "Running Skiped"（非 SND）→ 计入 社区跳过用例
+    snd_blacklist = 0     # 黑名单里 Should Not Do 文件的条目 → 计入 社区日落用例
+    for ws in wb.worksheets:
+        if _is_blacklist_sheet(ws.title):
+            header = next(ws.iter_rows(values_only=True), None)
+            if header is not None:
+                rows = ws.iter_rows(min_row=2, values_only=True)
+                for module, f, _suffix, result, _skip_cls, _skip_reason in _blacklist_entries(
+                        header, rows, file_module):
+                    blacklist_count += 1
+                    blacklist_by_module[module] += 1
+                    if f in snd_files:
+                        snd_blacklist += 1
+                        snd_blacklist_by_module[module] += 1
+                    elif result == "skipped":
+                        running_skip += 1
+            break
+    collected += blacklist_count
+
     # 社区跳过用例 = skipped rows in all_testcases;
-    # 黑名单跳过用例 = rows in all_testcases whose 不支持(黑名单) is set (unsupported).
+    # 黑名单跳过用例 = 黑名单跳过 sheet 用例数量（见上方 blacklist_count，内联
+    # 不支持 列暂不计）。
     # Should Not Do 文件（社区日落用例）的用例已在上方按 实际运行数量 全额从 snd
     # 扣除，这里跳过其行，使「目标看护用例」与场景内剔除 SND 后的用例执行结果分布
     # （passed + failed + error）严格对齐。
     community_skip = 0
-    blocklist = 0
     sheet_names = {ws.title for ws in wb.worksheets}
     if "all_testcases" in sheet_names:
         ws = wb["all_testcases"]
@@ -366,14 +406,21 @@ def build_total(path, status_path=None):
         header = next(rows, None)
         col_file = _find_column(header, COLUMN_SPEC["file"])
         col_result = _find_column(header, COLUMN_SPEC["result"])
-        col_unsupported = _find_column(header, COLUMN_SPEC["unsupported"])
         for row in rows:
             if snd_files and _cell(row, col_file) in snd_files:
                 continue
             if (_cell(row, col_result) or "").lower() == "skipped":
                 community_skip += 1
-            if _cell(row, col_unsupported):
-                blocklist += 1
+
+    # 黑名单跳过 sheet 的三类归宿（与「用例执行结果分布」严格一一对应）：
+    #   - "Running Skiped"（非 SND）→ 计入 社区跳过用例（分布里它们归类为 skipped）；
+    #   - Should Not Do 文件的条目 → 计入 社区日落用例（其用例已在日落口径整体剔除）；
+    #   - 其余「不支持」类（device/cann/dtype not supported，非 SND）→ 计入 黑名单跳过用例。
+    # 这样 社区跳过用例 == 分布 skipped、黑名单跳过用例 == 分布 blacklist_unsupported、
+    # 社区日落用例 == 分布中剔除的 SND 用例（all_testcases + 黑名单）。
+    snd += snd_blacklist
+    community_skip += running_skip
+    blocklist = blacklist_count - running_skip - snd_blacklist
 
     watch = collected - community_skip - blocklist - snd
     return {
@@ -384,6 +431,8 @@ def build_total(path, status_path=None):
             "snd": snd,
             "result": watch,
         },
+        "blacklist_by_module": dict(blacklist_by_module),
+        "snd_blacklist_by_module": dict(snd_blacklist_by_module),
     }
 
 
@@ -898,11 +947,22 @@ def main(argv=None):
         # 用例需从总量场景的各用例数量统计中剔除（社区日落用例），与顶部用例总览口径一致。
         total_track = load_status(total_status) if total_status else {}
         snd_files = {f for f, (st, pr, asg) in total_track.items() if pr == "Should Not Do"}
+        # 2026-10-11 起全量报告的黑名单用例已挪到独立的 黑名单跳过 sheet，all_testcases
+        # 里内联的 不支持 列只剩少量历史用例（下次流水线会并入黑名单 sheet），故不再把
+        # 内联 不支持 行重分类为 blacklist_unsupported（保留其原始 执行结果）。
         tdata, tdetail, tfile_list = build(args.total, None, "TOTAL",
-                                           unsupported_to_blacklist=True,
+                                           unsupported_to_blacklist=False,
                                            exclude_files=snd_files)
         tdata, tfile_list = attach_status_and_fold(tdata, tfile_list, total_status)
         tdata["watch"] = watch_data.get("watch")
+
+        # 收集目标（蓝色柱）严格 100% 对齐：把黑名单跳过 sheet 的用例按模块并入
+        # 收集目标（全量黑名单）与 Should Not Do 份额（淡蓝），使蓝色柱剔除 SND 后
+        # 恰好等于该模块各用例执行结果之和。
+        for module, cnt in watch_data.get("blacklist_by_module", {}).items():
+            tdata["module_target"][module] = tdata["module_target"].get(module, 0) + cnt
+        for module, cnt in watch_data.get("snd_blacklist_by_module", {}).items():
+            tdata["module_snd_target"][module] = tdata["module_snd_target"].get(module, 0) + cnt
         if total_date:
             tdata["date"] = total_date
         tdata["dataset"] = f"{args.dataset}_TOTAL"

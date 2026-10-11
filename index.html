@@ -187,6 +187,9 @@ body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--
 .side-legend-divider{height:1px;background:var(--gridline);margin:2px 0}
 .side-legend-item.extra .side-legend-label{color:var(--text-muted)}
 .side-legend-item.extra .side-legend-value{color:var(--text-muted);font-weight:500}
+.chart-note{font-size:0.6875rem;color:var(--text-muted);margin-top:10px;line-height:1.6}
+.chart-note a{color:var(--gen-yes);text-decoration:none;border-bottom:1px solid transparent}
+.chart-note a:hover{text-decoration:underline}
 
 /* Legend (inline, for bar charts) */
 .chart-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}
@@ -458,6 +461,7 @@ body.no-data #empty-state{display:flex}
         <canvas id="chart-case-pie"></canvas>
         <div class="side-legend" id="legend-case-pie"></div>
       </div>
+      <div class="chart-note">注：跳过用例指用例执行过程中被跳过的用例；Blacklist 用例：依据 <a href="https://wiki.huawei.com/domains/148009/wiki/295810/WIKI2026070911791982" target="_blank" rel="noopener">SEG 结论或公开资料</a> 的限制说明进入黑名单。</div>
       <div class="chart-tooltip" id="tooltip-case-pie"></div>
     </div>
     <div class="chart-card" id="card-modules">
@@ -626,8 +630,8 @@ const DATA_A3_DECOUPLE = /*__DATA_A3_DECOUPLE_BEGIN__*/
 {
   "files_total": 1245,
   "files_gen": 330,
-  "files_na": 662,
-  "files_gen_rate": 33.3,
+  "files_na": 656,
+  "files_gen_rate": 33.5,
   "cases_total": 364201,
   "cases": {
     "passed": 255515,
@@ -670,7 +674,7 @@ const DATA_A3_DECOUPLE = /*__DATA_A3_DECOUPLE_BEGIN__*/
     "Distributed": {
       "files": 252,
       "gen_files": 42,
-      "na_files": 179,
+      "na_files": 178,
       "gen_cases": 583,
       "passed": 318,
       "failed": 1,
@@ -680,12 +684,12 @@ const DATA_A3_DECOUPLE = /*__DATA_A3_DECOUPLE_BEGIN__*/
       "error": 205,
       "blacklist_unsupported": 0,
       "snd_files": 0,
-      "nocase_files": 31
+      "nocase_files": 32
     },
     "Graph": {
       "files": 535,
       "gen_files": 172,
-      "na_files": 247,
+      "na_files": 248,
       "gen_cases": 152757,
       "passed": 93071,
       "failed": 6818,
@@ -695,7 +699,7 @@ const DATA_A3_DECOUPLE = /*__DATA_A3_DECOUPLE_BEGIN__*/
       "error": 39,
       "blacklist_unsupported": 3439,
       "snd_files": 106,
-      "nocase_files": 10
+      "nocase_files": 9
     },
     "Math": {
       "files": 16,
@@ -715,7 +719,7 @@ const DATA_A3_DECOUPLE = /*__DATA_A3_DECOUPLE_BEGIN__*/
     "Other": {
       "files": 136,
       "gen_files": 20,
-      "na_files": 111,
+      "na_files": 105,
       "gen_cases": 3086,
       "passed": 2915,
       "failed": 59,
@@ -725,7 +729,7 @@ const DATA_A3_DECOUPLE = /*__DATA_A3_DECOUPLE_BEGIN__*/
       "error": 0,
       "blacklist_unsupported": 23,
       "snd_files": 0,
-      "nocase_files": 5
+      "nocase_files": 11
     },
     "Quantization": {
       "files": 43,
@@ -774,21 +778,21 @@ const DATA_A3_DECOUPLE = /*__DATA_A3_DECOUPLE_BEGIN__*/
     }
   },
   "files_snd": 181,
-  "files_nocase": 72,
+  "files_nocase": 78,
   "module_target": {
-    "Core": 39964,
-    "Distributed": 9202,
-    "Graph": 254067,
-    "Math": 23225,
-    "Other": 5560,
-    "Quantization": 2471,
-    "Tensor": 211419,
-    "Utils": 25732
+    "Core": 34470,
+    "Distributed": 9228,
+    "Graph": 245060,
+    "Math": 23188,
+    "Other": 5947,
+    "Quantization": 2477,
+    "Tensor": 189096,
+    "Utils": 25801
   },
   "module_snd_target": {
-    "Core": 26,
-    "Graph": 21589,
-    "Tensor": 10285,
+    "Core": 27,
+    "Graph": 21346,
+    "Tensor": 10240,
     "Utils": 561
   },
   "date": "2026-10-08",
@@ -798,80 +802,87 @@ const DATA_A3_DECOUPLE = /*__DATA_A3_DECOUPLE_BEGIN__*/
 const DATA_A5_DECOUPLE = /*__DATA_A5_DECOUPLE_BEGIN__*/ null /*__DATA_A5_DECOUPLE_END__*/;
 const DATA_A3_TOTAL = /*__DATA_A3_TOTAL_BEGIN__*/
 {
-  "files_total": 1228,
-  "files_gen": 972,
+  "files_total": 1248,
+  "files_gen": 989,
   "files_na": 0,
   "files_gen_rate": 100.0,
-  "cases_total": 539179,
+  "cases_total": 539193,
   "cases": {
-    "passed": 355017,
-    "failed": 25817,
-    "skipped": 127915,
+    "passed": 357212,
+    "failed": 22859,
+    "skipped": 124409,
     "not_executed": 0,
     "timeout": 0,
-    "error": 913,
-    "blacklist_unsupported": 29517
+    "error": 946,
+    "blacklist_unsupported": 33767
   },
-  "blacklist_total": 0,
+  "blacklist_total": 36045,
   "skip_categories": {
-    "skipped": [],
-    "blacklist_unsupported": []
+    "skipped": [
+      "Running Skiped"
+    ],
+    "blacklist_unsupported": [
+      "device not supported",
+      "cann not supported",
+      "dtype not supported (cann)",
+      "dtype not supported (api)"
+    ]
   },
-  "cases_pass_rate": 93.0,
+  "cases_pass_rate": 93.8,
   "sheets": {
     "Core": {
       "files": 53,
       "gen_files": 44,
       "na_files": 0,
-      "gen_cases": 39938,
-      "passed": 20285,
-      "failed": 1162,
-      "skipped": 13409,
+      "gen_cases": 39858,
+      "passed": 20414,
+      "failed": 1094,
+      "skipped": 13230,
       "not_executed": 0,
       "timeout": 0,
-      "error": 183,
-      "blacklist_unsupported": 4899,
+      "error": 1,
+      "blacklist_unsupported": 5119,
       "snd_files": 3,
       "nocase_files": 6
     },
     "Distributed": {
       "files": 252,
-      "gen_files": 221,
+      "gen_files": 220,
       "na_files": 0,
-      "gen_cases": 9202,
-      "passed": 6077,
-      "failed": 451,
-      "skipped": 2386,
+      "gen_cases": 9259,
+      "passed": 5883,
+      "failed": 458,
+      "skipped": 2570,
       "not_executed": 0,
       "timeout": 0,
-      "error": 257,
+      "error": 317,
       "blacklist_unsupported": 31,
       "snd_files": 0,
-      "nocase_files": 31
+      "nocase_files": 32
     },
     "Graph": {
-      "files": 536,
-      "gen_files": 418,
+      "files": 535,
+      "gen_files": 420,
       "na_files": 0,
-      "gen_cases": 232478,
-      "passed": 135628,
-      "failed": 16274,
-      "skipped": 74704,
+      "gen_cases": 231045,
+      "passed": 137131,
+      "failed": 15953,
+      "skipped": 70900,
       "not_executed": 0,
       "timeout": 0,
-      "error": 455,
-      "blacklist_unsupported": 5417,
+      "error": 470,
+      "blacklist_unsupported": 6591,
       "snd_files": 106,
-      "nocase_files": 12
+      "nocase_files": 9
     },
     "Math": {
       "files": 16,
       "gen_files": 16,
       "na_files": 0,
-      "gen_cases": 23225,
-      "passed": 17449,
-      "failed": 428,
-      "skipped": 4968,
+      "gen_cases": 23578,
+      "passed": 17704,
+      "failed": 437,
+      "skipped": 5057,
       "not_executed": 0,
       "timeout": 0,
       "error": 0,
@@ -880,26 +891,26 @@ const DATA_A3_TOTAL = /*__DATA_A3_TOTAL_BEGIN__*/
       "nocase_files": 0
     },
     "Other": {
-      "files": 117,
-      "gen_files": 112,
+      "files": 139,
+      "gen_files": 128,
       "na_files": 0,
-      "gen_cases": 5560,
-      "passed": 4014,
+      "gen_cases": 6052,
+      "passed": 4334,
       "failed": 149,
-      "skipped": 1373,
+      "skipped": 1539,
       "not_executed": 0,
       "timeout": 0,
       "error": 0,
-      "blacklist_unsupported": 24,
+      "blacklist_unsupported": 30,
       "snd_files": 0,
-      "nocase_files": 5
+      "nocase_files": 11
     },
     "Quantization": {
       "files": 43,
       "gen_files": 43,
       "na_files": 0,
-      "gen_cases": 2471,
-      "passed": 1752,
+      "gen_cases": 2477,
+      "passed": 1758,
       "failed": 435,
       "skipped": 274,
       "not_executed": 0,
@@ -913,59 +924,59 @@ const DATA_A3_TOTAL = /*__DATA_A3_TOTAL_BEGIN__*/
       "files": 69,
       "gen_files": 32,
       "na_files": 0,
-      "gen_cases": 201134,
-      "passed": 156538,
-      "failed": 6798,
-      "skipped": 19131,
+      "gen_cases": 201584,
+      "passed": 156752,
+      "failed": 4217,
+      "skipped": 19097,
       "not_executed": 0,
       "timeout": 0,
-      "error": 1,
-      "blacklist_unsupported": 18666,
+      "error": 2,
+      "blacklist_unsupported": 21516,
       "snd_files": 37,
       "nocase_files": 0
     },
     "Utils": {
-      "files": 142,
+      "files": 141,
       "gen_files": 86,
       "na_files": 0,
-      "gen_cases": 25171,
-      "passed": 13274,
-      "failed": 120,
-      "skipped": 11670,
+      "gen_cases": 25340,
+      "passed": 13236,
+      "failed": 116,
+      "skipped": 11742,
       "not_executed": 0,
       "timeout": 0,
-      "error": 7,
+      "error": 146,
       "blacklist_unsupported": 100,
       "snd_files": 35,
-      "nocase_files": 21
+      "nocase_files": 20
     }
   },
   "files_snd": 181,
-  "files_nocase": 75,
+  "files_nocase": 78,
   "module_target": {
-    "Core": 39964,
-    "Distributed": 9202,
-    "Graph": 254067,
-    "Math": 23225,
-    "Other": 5560,
-    "Quantization": 2471,
-    "Tensor": 211419,
-    "Utils": 25732
+    "Core": 39885,
+    "Distributed": 9259,
+    "Graph": 252668,
+    "Math": 23578,
+    "Other": 6052,
+    "Quantization": 2477,
+    "Tensor": 211869,
+    "Utils": 25902
   },
   "module_snd_target": {
-    "Core": 26,
-    "Graph": 21589,
+    "Core": 27,
+    "Graph": 21623,
     "Tensor": 10285,
-    "Utils": 561
+    "Utils": 562
   },
   "watch": {
-    "collected": 571640,
-    "community_skip": 127915,
-    "blocklist": 29517,
-    "snd": 32461,
-    "result": 381747
+    "collected": 571690,
+    "community_skip": 124409,
+    "blocklist": 33767,
+    "snd": 32497,
+    "result": 381017
   },
-  "date": "2026-09-29",
+  "date": "2026-10-11",
   "dataset": "A3_TOTAL"
 }
   /*__DATA_A3_TOTAL_END__*/;
@@ -1690,8 +1701,6 @@ document.querySelector("#detail-table tbody").addEventListener("click",e=>{
 // RENDER ALL
 // ================================================================
 function renderSectionSubs(){
-  var c=document.getElementById("sec-case-sub");
-  if(c) c.textContent=fmt(DATA.cases_total)+" 用例 · 含 blacklist "+fmt(DATA.cases.blacklist_unsupported);
   var f=document.getElementById("sec-file-sub");
   if(f) f.textContent=fmt(DATA.files_total)+" 文件 · "+fmt(DATA.files_gen)+" 已泛化（"+DATA.files_gen_rate.toFixed(1)+"%）";
   var sp=document.getElementById("sub-case-pie");
@@ -1869,8 +1878,9 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
   function skipTag(sc){
     const k=(sc||"").trim().toLowerCase();
     if(k.indexOf("running")>=0) return {label:"Running", cls:"running"};
-    if(k.indexOf("cann")>=0)    return {label:"CANN",    cls:"cann"};
-    if(k.indexOf("device")>=0)  return {label:"Device",  cls:"device"};
+    if(k.indexOf("cann")>=0)    return k.indexOf("dtype")>=0 ? {label:"OPS DOCS", cls:"cann"} : {label:"CANN SEG", cls:"cann"};
+    if(k.indexOf("device")>=0)  return {label:"Device SEG", cls:"device"};
+    if(k.indexOf("dtype")>=0)   return {label:"API DOCS", cls:"other"};
     return {label:sc, cls:"other"};
   }
 
@@ -1924,7 +1934,7 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
       const cb=document.createElement("input"); cb.type="checkbox";
       row.appendChild(cb); row.appendChild(document.createTextNode(it.label));
       panel.appendChild(row);
-      itemEls.push({value:it.value,cb:cb,label:it.label});
+      itemEls.push({value:it.value,cb:cb,label:it.label,row:row});
     });
 
     function labelFor(v){ for(let i=0;i<itemEls.length;i++) if(itemEls[i].value===v) return itemEls[i].label; return v; }
@@ -1965,7 +1975,17 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
     return {
       values:values,
       set:function(arr){ values.clear(); (arr||[]).forEach(function(v){ if(v&&v!=="all") values.add(v); }); update(); },
-      clear:function(){ values.clear(); update(); }
+      clear:function(){ values.clear(); update(); },
+      setVisible:function(visSet){
+        // Show/hide individual items (and drop any selected value that is hidden).
+        // visSet = Set of raw values to keep visible, or null/undefined to show all.
+        itemEls.forEach(function(e){
+          const show=!visSet||visSet.has(e.value);
+          e.row.style.display=show?"":"none";
+          if(!show) values.delete(e.value);
+        });
+        update();
+      }
     };
   }
 
@@ -1979,8 +1999,20 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
 
   initSkipFilter();
   const mselModule = makeMultiSelect(moduleEl, function(){ renderCaseTree(); });
-  const mselStatus = makeMultiSelect(statusEl, function(){ renderCaseTree(); });
+  const mselStatus = makeMultiSelect(statusEl, function(){ syncSkipFilter(); renderCaseTree(); });
   const mselSkip   = makeMultiSelect(skipEl,   function(){ renderCaseTree(); });
+
+  // Narrow the skip-category filter to the skip分类 values the selected status(es)
+  // actually carry. Selecting blacklist_unsupported therefore hides "Running Skiped"
+  // (those are 社区跳过, not blacklist); selecting skipped hides the blacklist
+  // categories. No status selection keeps every skip分类 visible.
+  function syncSkipFilter(){
+    const sel=mselStatus.values;
+    if(sel.size===0){ mselSkip.setVisible(null); return; }
+    const vis=new Set();
+    sel.forEach(function(st){ (DATA.skip_categories[st]||[]).forEach(function(sc){ vis.add(sc); }); });
+    mselSkip.setVisible(vis.size ? vis : null);
+  }
   const mselFileModule   = makeMultiSelect(fileModuleEl,   function(){ renderFiles(); });
   const mselFileGen      = makeMultiSelect(fileGenEl,      function(){ renderFiles(); });
   const mselFileStatus   = makeMultiSelect(fileStatusEl,   function(){ renderFiles(); });
@@ -2270,6 +2302,7 @@ window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setT
   // to the details tab. "timeout_error" is the combined slice in the case pie.
   window.openCaseDetails=function(status,module){
     mselStatus.set(status && status!=="all" ? [status] : []);
+    syncSkipFilter();
     mselModule.set((module && CASES[module]) ? [module] : []);
     mselSkip.clear();
     renderCaseTree();
