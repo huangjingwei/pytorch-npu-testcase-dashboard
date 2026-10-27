@@ -387,9 +387,10 @@ regeneration leaves them unchanged:
     `blacklist_unsupported` and `not_executed` segments are drawn lightened (muted)
     to downplay the non-看护 statuses (via a `lighten()` helper, legend dots
     matched). Each module row also draws a thin blue **收集目标** bar above the
-    stacked bar — the module's should-collect total (`公共 + CPU + NPU` 预收集, plus the
+    stacked bar — the module's should-collect total (`实际运行数量` num, plus the
     黑名单跳过 sheet cases per module since 2026-10-11 so the bar reconciles with the
-    case distribution) — as a
+    case distribution; the 全量 export's 预收集 columns carry A3 baselines and don't
+    match the report's own collection, so the bar uses num instead) — as a
     non-clickable reference on the same axis;
     the Should Not Do portion of that total is drawn in a lighter blue so the
     should-collect / Should Not Do split stays visible, and the axis max is
@@ -409,12 +410,13 @@ regeneration leaves them unchanged:
     the 合计 row filters by the global (all-module) + result. Cells of zero-case
     modules are rendered plain (not clickable).
 - **Should Not Do handling.** Files with `Priority=="Should Not Do"` (社区日落) don't count toward
-  the should-collect target: their 公共/CPU/NPU 预收集 cases are shaded lighter blue in the module
-  收集目标 bars, and `sndCaseTotals(files)` computes the per-module share client-side. This applies
+  the should-collect target: their `实际运行数量` (num) cases are shaded lighter blue in the module
+  收集目标 bars (the Total build folds `module_snd_target` from num; with no Total data the client
+  falls back to `sndCaseTotals(files)`, summing each file's 公共/CPU/NPU 预收集). This applies
   uniformly to both 总量用例 and 解耦用例 — the light-blue share covers *every* SND file's
-  pre-collection, not just the ungeneralized ones. `sndCaseTotals` returns two metrics:
-  `total`/`pub`/`cpu`/`npu` = pre-collection for the 收集目标 bars, and `num` = `实际运行数量`
-  collected cases for the 收集测试用例 tile's "剔除 Should Not Do 的用例" figure.
+  share, not just the ungeneralized ones. `sndCaseTotals` returns two metrics:
+  `total`/`pub`/`cpu`/`npu` = pre-collection (the no-Total 收集目标 fallback), and `num` =
+  `实际运行数量` collected cases for the 收集测试用例 tile's "剔除 Should Not Do 的用例" figure.
 - **Details filters.** The details toolbar has four filters — text search
   (module/file/nodeid), a module filter, a status filter (with a combined
   `timeout_error` option), and a skip-category filter (the distinct `skip分类`

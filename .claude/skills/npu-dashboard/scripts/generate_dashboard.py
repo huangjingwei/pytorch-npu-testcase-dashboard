@@ -989,9 +989,22 @@ def main(argv=None):
         tdata, tfile_list = attach_status_and_fold(tdata, tfile_list, total_status)
         tdata["watch"] = watch_data.get("watch")
 
-        # 收集目标（蓝色柱）严格 100% 对齐：把黑名单跳过 sheet 的用例按模块并入
-        # 收集目标（全量黑名单）与 Should Not Do 份额（淡蓝），使蓝色柱剔除 SND 后
-        # 恰好等于该模块各用例执行结果之和。
+        # 收集目标（蓝色柱）改用「实际运行数量」口径：全量导出的预收集列实为 A3 基线
+        # 快照（列名仍是 A3全量-*），与 A5 本次实际收集数不一致，导致蓝色柱与堆叠条
+        # 无法严格 100% 对齐。以 num（实际运行数量，== all_testcases 行数）作为各报告
+        # 自身口径，Should Not Do 份额同样取 num，使蓝色柱剔除 SND 后即等于该模块
+        # 各用例执行结果之和。
+        module_target = defaultdict(int)
+        module_snd_target = defaultdict(int)
+        for m, _f, _g, num, _status, priority, _assignee, _cpu, _npu, _pub in tfile_list:
+            module_target[m] += num
+            if priority == "Should Not Do":
+                module_snd_target[m] += num
+        tdata["module_target"] = dict(module_target)
+        tdata["module_snd_target"] = dict(module_snd_target)
+
+        # 把黑名单跳过 sheet 的用例按模块并入收集目标（全量黑名单）与 Should Not Do
+        # 份额（淡蓝），使蓝色柱剔除 SND 后恰好等于该模块各用例执行结果之和。
         for module, cnt in watch_data.get("blacklist_by_module", {}).items():
             tdata["module_target"][module] = tdata["module_target"].get(module, 0) + cnt
         for module, cnt in watch_data.get("snd_blacklist_by_module", {}).items():
