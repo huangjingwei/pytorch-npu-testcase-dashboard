@@ -295,7 +295,7 @@ def load_precollect(path):
     return out
 
 
-def build_total(path, status_path=None):
+def build_total(path, status_path=None, unsupported_to_blacklist=False):
     """Read the *Total* (总量) workbook and compute the top-of-overview
     「用例总览」 看护策略 numbers, rendered by the frontend as a two-row grid —
     ``收集用例 − 社区日落用例 = 社区总量用例``
@@ -319,6 +319,12 @@ def build_total(path, status_path=None):
     == 分布的 ``blacklist_unsupported``）；``社区日落用例`` = Should Not Do 文件的
     ``实际运行数量``（其 ``all_testcases`` 行）**加上** 这些文件的黑名单条目（分布口径
     会把 SND 文件的用例整体剔除，含其黑名单条目）。
+
+    ``unsupported_to_blacklist=True`` 适配 **2026-10-19 起** 的全量报告格式：黑名单用例
+    内联回 ``all_testcases`` 的 ``不支持`` 列（``黑名单跳过`` sheet 为空）。此时内联
+    「不支持」行（非 SND）计入 ``黑名单跳过用例``（== 分布的 ``blacklist_unsupported``），
+    与 ``build_two_tier()`` 的 ``blacklist_unsupported`` 重分类口径一致。A3 (2026-10-11)
+    仍走旧口径（黑名单在独立 sheet），该开关传 ``False``。
 
     ``社区日落用例`` files' rows are *also* excluded from ``社区跳过用例``, so the
     resulting ``目标看护用例`` reconciles exactly with the scenario's
@@ -359,9 +365,12 @@ def build_total(path, status_path=None):
     snd_files = set()
     if status_path:
         track = load_status(status_path)
+        # 全量 SND 文件集合（与 main() 传给 build_two_tier 的 exclude_files 口径一致），
+        # 使黑名单跳过 sheet 里属于 SND 文件的条目都能被识别并排除（即便该文件未出现在
+        # all_files 中）；snd 只累计出现在 all_files 里的 SND 文件实际运行数量。
+        snd_files = {f for f, (st, pr, asg) in track.items() if pr == "Should Not Do"}
         for f, num in file_num.items():
-            if track.get(f, ("", "", ""))[1] == "Should Not Do":
-                snd_files.add(f)
+            if f in snd_files:
                 snd += num
 
     # 收集用例 = all_testcases 用例总量（Σ实际运行数量）+ 黑名单跳过 sheet 用例数量。
@@ -399,6 +408,7 @@ def build_total(path, status_path=None):
     # 扣除，这里跳过其行，使「目标看护用例」与场景内剔除 SND 后的用例执行结果分布
     # （passed + failed + error）严格对齐。
     community_skip = 0
+    inline_unsupported = 0
     sheet_names = {ws.title for ws in wb.worksheets}
     if "all_testcases" in sheet_names:
         ws = wb["all_testcases"]
@@ -406,11 +416,16 @@ def build_total(path, status_path=None):
         header = next(rows, None)
         col_file = _find_column(header, COLUMN_SPEC["file"])
         col_result = _find_column(header, COLUMN_SPEC["result"])
+        col_unsupported = _find_column(header, COLUMN_SPEC["unsupported"])
         for row in rows:
             if snd_files and _cell(row, col_file) in snd_files:
                 continue
             if (_cell(row, col_result) or "").lower() == "skipped":
                 community_skip += 1
+            elif unsupported_to_blacklist and _cell(row, col_unsupported):
+                # 内联「不支持」列（2026-10-19 起全量报告把黑名单内联回 all_testcases，
+                # 黑名单跳过 sheet 为空）→ 计入 黑名单跳过用例。
+                inline_unsupported += 1
 
     # 黑名单跳过 sheet 的三类归宿（与「用例执行结果分布」严格一一对应）：
     #   - "Running Skiped"（非 SND）→ 计入 社区跳过用例（分布里它们归类为 skipped）；
@@ -420,7 +435,7 @@ def build_total(path, status_path=None):
     # 社区日落用例 == 分布中剔除的 SND 用例（all_testcases + 黑名单）。
     snd += snd_blacklist
     community_skip += running_skip
-    blocklist = blacklist_count - running_skip - snd_blacklist
+    blocklist = blacklist_count - running_skip - snd_blacklist + inline_unsupported
 
     watch = collected - community_skip - blocklist - snd
     return {
@@ -879,6 +894,10 @@ def main(argv=None):
                    help="Tracking workbook for the Total (总量) data (default: summary_report.xlsx next to --total)")
     p.add_argument("--total-date", default=None,
                    help="Report date for the Total (总量) scenario DATA_<R>_TOTAL.date (default: --date)")
+    p.add_argument("--total-only", action="store_true",
+                   help="Regenerate ONLY the Total (总量) scenario (with --total); leave 解耦用例 untouched/null")
+    p.add_argument("--unsupported-to-blacklist", action="store_true",
+                   help="Reclassify all_testcases' inline 不支持 rows as blacklist_unsupported (总量报告把黑名单内联回 all_testcases 时用, 黑名单跳过 sheet 为空)")
     args = p.parse_args(argv)
     args.dataset = args.dataset.upper()
 
@@ -910,48 +929,62 @@ def main(argv=None):
     # 均不含 Should Not Do 用例（文件级口径仍保留 SND 文件本身）。
     track = load_status(status_path) if status_path else {}
     snd_files = {f for f, (st, pr, asg) in track.items() if pr == "Should Not Do"}
-    data, detail, file_list = build(args.input, blacklist, args.dataset,
-                                    exclude_files=snd_files)
 
-    # Attach the tracked status/priority/assignee (if any) to each file list
-    # entry, as 5th/6th/7th elements, and keep the pre-collection counts
-    # (cpu/npu/pub from all_files) as the final 8th/9th/10th. Files absent from
-    # the tracking sheet carry "" for each (untracked). Also folds "Should Not Do"
-    # files out of the 未泛化 bucket.
-    #
-    # 解耦导出的预收集列可能为空（2026-10-08 起），此时用 Total 工作簿的预收集
-    # 对齐收集目标与「未泛化/无用例文件」划分，使无用例文件口径与总量用例一致。
-    total_precollect = load_precollect(args.total) if args.total else None
-    data, file_list = attach_status_and_fold(data, file_list, status_path,
-                                             total_precollect=total_precollect)
-
-    if args.date:
-        data["date"] = args.date
-    data["dataset"] = f"{args.dataset}_DECOUPLE"
-
-    begin, end = data_markers(args.dataset, "DECOUPLE")
+    # 读模板一次，供 解耦/总量 两个 scenario 的注入复用。
     with open(args.output, "r", encoding="utf-8") as f:
         html = f.read()
-    html = inject(html, begin, end,
-                  "\n" + json.dumps(data, ensure_ascii=False, indent=2) + "\n  ")
+
+    data = detail = file_list = None
+    if args.total_only:
+        # --total-only：只(重新)生成总量用例 scenario，解耦用例保持模板原样
+        # （如 A5 尚无解耦数据）。仍写一个空 cases_<r>_decouple.js 以免解耦 tab 404。
+        blank_cases = os.path.join(
+            os.path.dirname(args.output) or ".", cases_filename(args.dataset, "DECOUPLE"))
+        with open(blank_cases, "w", encoding="utf-8") as f:
+            f.write("window.CASES={};window.FILES=[];\n")
+    else:
+        data, detail, file_list = build(args.input, blacklist, args.dataset,
+                                        exclude_files=snd_files)
+
+        # Attach the tracked status/priority/assignee (if any) to each file list
+        # entry, as 5th/6th/7th elements, and keep the pre-collection counts
+        # (cpu/npu/pub from all_files) as the final 8th/9th/10th. Files absent from
+        # the tracking sheet carry "" for each (untracked). Also folds "Should Not Do"
+        # files out of the 未泛化 bucket.
+        #
+        # 解耦导出的预收集列可能为空（2026-10-08 起），此时用 Total 工作簿的预收集
+        # 对齐收集目标与「未泛化/无用例文件」划分，使无用例文件口径与总量用例一致。
+        total_precollect = load_precollect(args.total) if args.total else None
+        data, file_list = attach_status_and_fold(data, file_list, status_path,
+                                                 total_precollect=total_precollect)
+
+        if args.date:
+            data["date"] = args.date
+        data["dataset"] = f"{args.dataset}_DECOUPLE"
+
+        begin, end = data_markers(args.dataset, "DECOUPLE")
+        html = inject(html, begin, end,
+                      "\n" + json.dumps(data, ensure_ascii=False, indent=2) + "\n  ")
 
     # Total (总量) — when --total is supplied, build the report's 总量用例 scenario
     # (DATA_<R>_TOTAL + cases_<r>_total.js). The 看护策略 numbers from build_total()
     # are folded into the scenario object as ``watch`` (one object per scenario; the
     # separate TOTAL_OVERVIEW object is gone).
     if args.total:
-        watch_data = build_total(args.total, total_status)
+        watch_data = build_total(args.total, total_status,
+                                 unsupported_to_blacklist=args.unsupported_to_blacklist)
         total_date = args.total_date or args.date
 
         # Should Not Do (无需泛化/废弃) 文件：其优先级为 "Should Not Do"，对应
         # 用例需从总量场景的各用例数量统计中剔除（社区日落用例），与顶部用例总览口径一致。
         total_track = load_status(total_status) if total_status else {}
         snd_files = {f for f, (st, pr, asg) in total_track.items() if pr == "Should Not Do"}
-        # 2026-10-11 起全量报告的黑名单用例已挪到独立的 黑名单跳过 sheet，all_testcases
-        # 里内联的 不支持 列只剩少量历史用例（下次流水线会并入黑名单 sheet），故不再把
-        # 内联 不支持 行重分类为 blacklist_unsupported（保留其原始 执行结果）。
+        # 2026-10-11 起全量报告把黑名单用例挪到独立的 黑名单跳过 sheet（此时内联 不支持
+        # 列只剩少量历史用例，保留其原始 执行结果，unsupported_to_blacklist=False）；
+        # 2026-10-19 起又把黑名单内联回 all_testcases 的 不支持 列（黑名单跳过 sheet 为空），
+        # 此时用 --unsupported-to-blacklist 把内联 不支持 行重分类为 blacklist_unsupported。
         tdata, tdetail, tfile_list = build(args.total, None, "TOTAL",
-                                           unsupported_to_blacklist=False,
+                                           unsupported_to_blacklist=args.unsupported_to_blacklist,
                                            exclude_files=snd_files)
         tdata, tfile_list = attach_status_and_fold(tdata, tfile_list, total_status)
         tdata["watch"] = watch_data.get("watch")
@@ -1001,6 +1034,10 @@ def main(argv=None):
 
     with open(args.output, "w", encoding="utf-8") as f:
         f.write(html)
+
+    if args.total_only:
+        print(f"wrote {args.output} (TOTAL only; 解耦用例 left blank)")
+        return
 
     cases_path = args.cases_out or os.path.join(
         os.path.dirname(args.output) or ".", cases_filename(args.dataset, "DECOUPLE"))

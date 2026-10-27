@@ -94,6 +94,8 @@ Run A3 (with `--total`) *and* A5 — each run only rewrites its own report's
 | `--total` | _(none)_ | The report's Total (总量) workbook. Builds the 总量用例 scenario — `DATA_<R>_TOTAL` (between `__DATA_<R>_TOTAL_BEGIN__`/`__DATA_<R>_TOTAL_END__`) plus `cases_<r>_total.js` — with the 看护策略 numbers from `build_total()` folded into the scenario object as `DATA_<R>_TOTAL.watch` (the top 「用例总览」 card and 解耦进度 target both read this). Omitted, `DATA_<R>_TOTAL` stays `null` and a blank `cases_<r>_total.js` is written so the 总量用例 tab never 404s |
 | `--total-status` | `summary_report.xlsx` next to `--total` (if present) | Tracking workbook for the Total data. Resolves `Should Not Do` (Priority) into the SND 文件集合: their cases are excluded from the 总量用例 scenario's case counts **and** from the 看护策略 `社区跳过用例`/`黑名单跳过用例` terms (so `目标看护用例` == `passed+failed+timeout+error`); also attaches status/priority/assignee to the 总量用例 测试文件 tab |
 | `--total-date` | `--date` | Report date for the Total scenario (`DATA_<R>_TOTAL.date`; e.g. `2026-09-23` while the A3 `--date` is `2026-09-26`) |
+| `--total-only` | _(off)_ | Regenerate **only** the Total (总量) scenario (requires `--total`); leave 解耦用例 untouched (a blank `cases_<r>_decouple.js` is written) and return early. Use when a report has 总量 data but no 解耦 sample yet (e.g. A5 on 2026-10-19) |
+| `--unsupported-to-blacklist` | _(off)_ | Reclassify `all_testcases`' inline `不支持` column rows as `blacklist_unsupported` (both in `build_total()` 看护公式 and `build_two_tier()` case counts). Pass it for the **2026-10-19 起** 总量报告格式, where the blacklist is inlined back into `all_testcases` and the 黑名单跳过 sheet is empty; A3 (2026-10-11) keeps it off (blacklist lives in the separate sheet) |
 
 Dependencies: `openpyxl` only (`pip3 install openpyxl`).
 
@@ -150,9 +152,15 @@ counting toward the case totals. `build_total()` keeps the top 看护公式 in t
 `收集用例`, subtracts the SND cases in full via `社区日落用例` (including those files' blacklist
 entries), and (as above) excludes the SND files' rows from `社区跳过用例`, so
 `目标看护用例 == passed + failed + timeout + error` in exact agreement with the scenario's
-用例执行结果分布. Since 2026-10-11 the 内联 `不支持` column in `all_testcases` is **no longer**
-reclassified as `blacklist_unsupported` (`unsupported_to_blacklist=False`) — those historical rows
-keep their original 执行结果, and only the separate 黑名单跳过 sheet feeds the blacklist counts.
+用例执行结果分布. The 内联 `不支持` column's treatment is format-dependent:
+
+- **A3 (2026-10-11 起):** the 内联 `不支持` column is **no longer** reclassified
+  (`unsupported_to_blacklist=False`) — those historical rows (169) keep their original
+  执行结果, and only the separate 黑名单跳过 sheet feeds the blacklist counts.
+- **A5 (2026-10-19 起):** the blacklist is inlined back into `all_testcases` (the
+  黑名单跳过 sheet is empty). Pass `--unsupported-to-blacklist` so the 内联 `不支持` rows
+  (29,877) are reclassified as `blacklist_unsupported` in both `build_total()` and
+  `build_two_tier()`, splitting `failed` into `failed(不支持)` / `failed(其他)`.
 
 (The 用例分布 公共/CPU/PU1 pie-chart card was removed, so `build_total()` no longer
 emits the pre-collection `dist` split — only the 看护策略 `watch` numbers.)
